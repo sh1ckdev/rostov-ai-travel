@@ -20,7 +20,7 @@ RUN npm install -g @expo/cli
 EXPOSE 8081
 
 # Устанавливаем переменные окружения
-ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=lan
 
 # Команда для запуска приложения
-CMD ["npx", "expo", "start", "--web", "--host", "0.0.0.0"]
+CMD ["npx", "expo", "start", "--web", "--host", "lan"]
