@@ -1,26 +1,19 @@
-# Используем официальный Node.js образ
 FROM node:22-alpine
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем package.json
 COPY package.json ./
-
-# Устанавливаем зависимости
 RUN npm install
-
-# Копируем исходный код приложения
 COPY . .
 
-# Устанавливаем Expo CLI глобально
 RUN npm install -g @expo/cli
 
-# Открываем порт для Expo
-EXPOSE 8081
 
-# Устанавливаем переменные окружения
-ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=lan
+RUN apk add --no-cache bash coreutils
 
-# Команда для запуска приложения
-CMD ["npx", "expo", "start", "--web", "--host", "lan"]
+EXPOSE 8081 19000 19001 19002
+ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+ENV TERM=xterm-256color
+ENV FORCE_COLOR=1
+
+CMD ["bash", "-c", "npx expo start --tunnel"]
