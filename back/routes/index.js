@@ -66,6 +66,60 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Простой тестовый эндпоинт для POI (без базы данных)
+router.get('/pois/test', (req, res) => {
+  const testPOIs = [
+    {
+      id: '1',
+      name: 'Театр им. Горького',
+      description: 'Один из старейших театров Ростова-на-Дону',
+      latitude: 47.2357,
+      longitude: 39.7125,
+      category: 'CULTURE',
+      rating: 4.5,
+      address: 'пл. Театральная, 1',
+      phone: '+7 (863) 240-40-70',
+      website: 'https://rostovteatr.ru',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: '2',
+      name: 'Парк им. Горького',
+      description: 'Центральный парк города',
+      latitude: 47.2400,
+      longitude: 39.7200,
+      category: 'NATURE',
+      rating: 4.2,
+      address: 'ул. Большая Садовая, 45',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: '3',
+      name: 'Ростовский зоопарк',
+      description: 'Один из крупнейших зоопарков России',
+      latitude: 47.2500,
+      longitude: 39.7300,
+      category: 'ATTRACTION',
+      rating: 4.7,
+      address: 'ул. Зоологическая, 3',
+      phone: '+7 (863) 232-45-16',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ];
+
+  res.json({
+    success: true,
+    data: testPOIs,
+    message: 'Test POIs loaded successfully'
+  });
+});
+
 // ==================== POI Routes ====================
 
 // ВАЖНО: Специфичные роуты должны быть ПЕРЕД параметризованными!
@@ -157,8 +211,8 @@ router.get('/map/place/:placeId', getPlaceDetailsValidation, mapController.getPl
 // Получить рекомендуемые POI
 router.get('/map/recommended-pois', getRecommendedPOIsValidation, mapController.getRecommendedPOIs)
 
-// Синхронизировать POI с Google Places
-router.post('/map/sync-poi/:poiId', authMiddleware, syncPOIValidation, mapController.syncPOIWithGooglePlaces)
+// Синхронизировать POI с Yandex Maps
+router.post('/map/sync-poi/:poiId', authMiddleware, syncPOIValidation, mapController.syncPOIWithYandex)
 
 // Получить статистику карты
 router.get('/map/stats', mapController.getMapStats)

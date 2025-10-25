@@ -182,8 +182,8 @@ class MapController {
     }
   }
 
-  // Синхронизировать POI с Google Places
-  async syncPOIWithGooglePlaces(req, res, next) {
+  // Синхронизировать POI с Yandex Maps
+  async syncPOIWithYandex(req, res, next) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
@@ -192,12 +192,12 @@ class MapController {
 
       const { poiId } = req.params;
 
-      const poi = await mapService.syncPOIWithGooglePlaces(poiId);
+      const poi = await mapService.syncPOIWithYandex(poiId);
 
       res.json({
         success: true,
         data: poi,
-        message: 'POI синхронизирован с Google Places'
+        message: 'POI синхронизирован с Yandex Maps'
       });
     } catch (error) {
       next(error);
