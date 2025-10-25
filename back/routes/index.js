@@ -4,6 +4,7 @@ const poiController = require('../controllers/poi-controller')
 const routeController = require('../controllers/route-controller')
 const mapController = require('../controllers/map-controller')
 const hotelController = require('../controllers/hotel-controller')
+const aiController = require('../controllers/ai-controller')
 const router = new Router()
 const {body, check} = require ('express-validator')
 const authMiddleware = require('../middlewares/authMiddleware')
@@ -220,6 +221,12 @@ router.get('/map/stats', mapController.getMapStats)
 // Вычислить расстояние
 router.get('/map/distance', calculateDistanceValidation, mapController.calculateDistance)
 
+// Улучшенный поиск POI с использованием нескольких источников
+router.get('/map/enhanced-pois', findNearbyPlacesValidation, mapController.getEnhancedPOIs)
+
+// Поиск POI по названию
+router.get('/map/search-pois', mapController.searchPOIByName)
+
 // ==================== Hotel Routes ====================
 
 // ВАЖНО: Специфичные роуты ПЕРЕД параметризованными!
@@ -265,5 +272,22 @@ router.delete('/hotels/:id/bookings/:bookingId', authMiddleware, cancelBookingVa
 
 // Добавить отзыв
 router.post('/hotels/:id/reviews', authMiddleware, addReviewValidation, hotelController.addReview)
+
+// ==================== AI Routes ====================
+
+// Получить персональные рекомендации
+router.post('/ai/recommendations', authMiddleware, aiController.getPersonalRecommendations)
+
+// Создать маршрут с помощью AI
+router.post('/ai/create-route', authMiddleware, aiController.createAIRoute)
+
+// Отправить сообщение AI-помощнику
+router.post('/ai/chat', authMiddleware, aiController.sendMessage)
+
+// Получить контекстные предложения
+router.post('/ai/contextual-suggestions', authMiddleware, aiController.getContextualSuggestions)
+
+// Анализ предпочтений пользователя
+router.post('/ai/analyze-preferences', authMiddleware, aiController.analyzeUserPreferences)
 
 module.exports = router

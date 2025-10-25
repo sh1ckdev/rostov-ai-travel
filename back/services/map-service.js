@@ -11,6 +11,13 @@ class MapService {
     this.twogisApiKey = process.env.TWOGIS_API_KEY;
     this.baseUrl = 'https://catalog.api.2gis.com/3.0';
     this.directionsUrl = 'https://routing.api.2gis.com';
+    
+    // Роскадастр API
+    this.rosreestrApiKey = process.env.ROSREESTR_API_KEY || 'demo';
+    this.rosreestrBaseUrl = 'https://rosreestr.gov.ru/api';
+    
+    // OpenStreetMap Nominatim для геокодирования
+    this.nominatimUrl = 'https://nominatim.openstreetmap.org';
   }
 
   // Получить направления между точками (Expo встроенные решения)
@@ -616,6 +623,184 @@ class MapService {
     } catch (error) {
       console.error('Ошибка проверки загрузки POI:', error.message);
     }
+  }
+
+  // Поиск POI по названию через Nominatim
+  async searchPOIByName(query, limit = 10) {
+    try {
+      const response = await axios.get(`${this.nominatimUrl}/search`, {
+        params: {
+          q: `${query}, Ростов-на-Дону, Россия`,
+          format: 'json',
+          limit: limit,
+          addressdetails: 1,
+          extratags: 1
+        },
+        headers: {
+          'User-Agent': 'RostovAI-Travel/1.0'
+        }
+      });
+
+      const pois = response.data.map(item => ({
+        id: `nominatim_${item.place_id}`,
+        name: item.display_name.split(',')[0],
+        description: item.display_name,
+        latitude: parseFloat(item.lat),
+        longitude: parseFloat(item.lon),
+        category: this.categorizePOI(item),
+        address: item.display_name,
+        rating: 0,
+        source: 'nominatim'
+      }));
+
+      return pois;
+    } catch (error) {
+      console.error('Ошибка поиска POI по названию:', error);
+      return [];
+    }
+  }
+
+  // Категоризация POI на основе тегов
+  categorizePOI(item) {
+    const tags = item.tags || {};
+    
+    if (tags.amenity === 'restaurant' || tags.amenity === 'cafe' || tags.amenity === 'fast_food') {
+      return 'RESTAURANT';
+    }
+    if (tags.tourism === 'hotel' || tags.amenity === 'hotel') {
+      return 'HOTEL';
+    }
+    if (tags.tourism === 'attraction' || tags.historic || tags.amenity === 'museum') {
+      return 'ATTRACTION';
+    }
+    if (tags.shop) {
+      return 'SHOPPING';
+    }
+    if (tags.amenity === 'hospital' || tags.amenity === 'clinic') {
+      return 'HEALTH';
+    }
+    if (tags.amenity === 'school' || tags.amenity === 'university') {
+      return 'EDUCATION';
+    }
+    if (tags.religion) {
+      return 'RELIGIOUS';
+    }
+    if (tags.leisure === 'park' || tags.natural) {
+      return 'NATURE';
+    }
+    if (tags.amenity === 'theatre' || tags.amenity === 'cinema') {
+      return 'CULTURE';
+    }
+    if (tags.leisure === 'sports_centre' || tags.amenity === 'gym') {
+      return 'SPORT';
+    }
+    
+    return 'OTHER';
+  }
+
+  // Получить данные из Роскадастра
+  async getRosreestrData(latitude, longitude, radius = 1000) {
+    try {
+      // Поиск объектов недвижимости в радиусе
+      const response = await axios.get(`${this.rosreestrBaseUrl}/search`, {
+        params: {
+          lat: latitude,
+          lon: longitude,
+          radius: radius,
+          type: 'real_estate'
+        },
+        headers: {
+          'Authorization': `Bearer ${this.rosreestrApiKey}`
+        }
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка получения данных Роскадастра:', error);
+      return [];
+    }
+  }
+
+  // Улучшенный поиск POI с использованием нескольких источников
+  async getEnhancedPOIs(latitude, longitude, radius = 10000, query = '') {
+    try {
+      let allPOIs = [];
+
+      // 1. Поиск через Nominatim по названию
+      if (query) {
+        const nominatimPOIs = await this.searchPOIByName(query);
+        allPOIs = [...allPOIs, ...nominatimPOIs];
+      }
+
+      // 2. Поиск через 2GIS (если доступен)
+      if (this.twogisApiKey) {
+        try {
+          const twogisPOIs = await this.get2GISPOIs(latitude, longitude, radius);
+          allPOIs = [...allPOIs, ...twogisPOIs];
+        } catch (error) {
+          console.log('2GIS недоступен, пропускаем');
+        }
+      }
+
+      // 3. Данные из Роскадастра
+      try {
+        const rosreestrData = await this.getRosreestrData(latitude, longitude, radius);
+        const rosreestrPOIs = this.convertRosreestrToPOI(rosreestrData);
+        allPOIs = [...allPOIs, ...rosreestrPOIs];
+      } catch (error) {
+        console.log('Роскадастр недоступен, пропускаем');
+      }
+
+      // 4. Резервные тестовые данные
+      if (allPOIs.length === 0) {
+        allPOIs = this.getTestPOIs();
+      }
+
+      // Удаляем дубликаты и фильтруем по радиусу
+      const uniquePOIs = this.removeDuplicates(allPOIs);
+      const filteredPOIs = this.filterByRadius(uniquePOIs, latitude, longitude, radius);
+
+      return filteredPOIs;
+    } catch (error) {
+      console.error('Ошибка получения улучшенных POI:', error);
+      return this.getTestPOIs();
+    }
+  }
+
+  // Конвертация данных Роскадастра в POI
+  convertRosreestrToPOI(rosreestrData) {
+    return rosreestrData.map(item => ({
+      id: `rosreestr_${item.id}`,
+      name: item.name || 'Объект недвижимости',
+      description: item.description || '',
+      latitude: parseFloat(item.latitude),
+      longitude: parseFloat(item.longitude),
+      category: 'OTHER',
+      address: item.address || '',
+      rating: 0,
+      source: 'rosreestr'
+    }));
+  }
+
+  // Удаление дубликатов POI
+  removeDuplicates(pois) {
+    const seen = new Set();
+    return pois.filter(poi => {
+      const key = `${poi.latitude}_${poi.longitude}_${poi.name}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // Фильтрация POI по радиусу
+  filterByRadius(pois, centerLat, centerLon, radius) {
+    return pois.filter(poi => {
+      const distance = this.calculateDistance(centerLat, centerLon, poi.latitude, poi.longitude);
+      return distance <= (radius / 1000); // Конвертируем в км
+    });
   }
 }
 

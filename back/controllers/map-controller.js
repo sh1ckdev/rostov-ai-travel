@@ -204,6 +204,59 @@ class MapController {
     }
   }
 
+  // Улучшенный поиск POI с использованием нескольких источников
+  async getEnhancedPOIs(req, res, next) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw ApiError.BadRequest('Ошибка валидации', errors.array());
+      }
+
+      const {
+        latitude,
+        longitude,
+        radius = 10000,
+        query = ''
+      } = req.query;
+
+      const pois = await mapService.getEnhancedPOIs(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseInt(radius),
+        query
+      );
+
+      res.json({
+        success: true,
+        data: pois,
+        count: pois.length
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Поиск POI по названию
+  async searchPOIByName(req, res, next) {
+    try {
+      const { query, limit = 10 } = req.query;
+
+      if (!query) {
+        throw ApiError.BadRequest('Параметр query обязателен');
+      }
+
+      const pois = await mapService.searchPOIByName(query, parseInt(limit));
+
+      res.json({
+        success: true,
+        data: pois,
+        count: pois.length
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // Получить статистику карты
   async getMapStats(req, res, next) {
     try {

@@ -15,6 +15,46 @@ export class MapService {
     }
   }
 
+  // Улучшенный поиск POI с использованием нескольких источников
+  static async getEnhancedPOIs(latitude: number, longitude: number, radius = 10000, query = ''): Promise<POI[]> {
+    try {
+      const response = await $api.get('/map/enhanced-pois', {
+        params: { latitude, longitude, radius, query }
+      });
+      
+      if (response.data && response.data.data) {
+        const pois = this.transformPOIs(response.data.data);
+        console.log('Загружено улучшенных POI:', pois.length);
+        return pois;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Ошибка загрузки улучшенных POI:', error);
+      return this.getTestPOIs();
+    }
+  }
+
+  // Поиск POI по названию
+  static async searchPOIByName(query: string, limit = 10): Promise<POI[]> {
+    try {
+      const response = await $api.get('/map/search-pois', {
+        params: { query, limit }
+      });
+      
+      if (response.data && response.data.data) {
+        const pois = this.transformPOIs(response.data.data);
+        console.log('Найдено POI по названию:', pois.length);
+        return pois;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Ошибка поиска POI по названию:', error);
+      return [];
+    }
+  }
+
   // Получить все POI
   static async getPOIs(params?: {
     page?: number;
@@ -29,20 +69,17 @@ export class MapService {
     autoLoad?: boolean; // Автоматически загрузить если база пуста
   }): Promise<POI[]> {
     try {
-      // Используем Yandex Maps API для поиска POI
+      // Используем улучшенный поиск POI
       if (params?.latitude && params?.longitude) {
-        const response = await $api.get('/map/nearby-places', {
-          params: {
-            latitude: params.latitude,
-            longitude: params.longitude,
-            radius: params.radius || 5000,
-            type: params.category || 'ресторан кафе отель достопримечательность'
-          }
-        });
+        const pois = await this.getEnhancedPOIs(
+          params.latitude,
+          params.longitude,
+          params.radius || 10000,
+          params.search || ''
+        );
         
-        if (response.data && response.data.data) {
-      const pois = this.transformPOIs(response.data.data);
-          console.log('Загружено POI из Yandex Maps:', pois.length);
+        if (pois.length > 0) {
+          console.log('Загружено улучшенных POI:', pois.length);
           return pois;
         }
       }

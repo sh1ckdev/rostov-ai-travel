@@ -1,8 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Route } from '../services/DirectionsService';
-import { IconSymbol } from './ui/icon-symbol';
-import ExpoMapView from './ExpoMapView';
+import WebMapView from './WebMapView';
 
 interface MapViewComponentProps {
   style?: any;
@@ -34,16 +33,17 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
   mapType = 'standard',
 }) => {
   return (
-    <ExpoMapView
-      style={style}
-      onLocationSelect={onLocationSelect}
-      showUserLocation={showUserLocation}
-      initialRegion={initialRegion}
-      route={route}
-      mapType={mapType}
-    >
-      {children}
-    </ExpoMapView>
+    <View style={[styles.container, style]}>
+      <WebMapView
+        onLocationSelect={onLocationSelect}
+        showUserLocation={showUserLocation}
+        initialRegion={initialRegion}
+        route={route}
+        mapType={mapType}
+      >
+        {children}
+      </WebMapView>
+    </View>
   );
 };
 

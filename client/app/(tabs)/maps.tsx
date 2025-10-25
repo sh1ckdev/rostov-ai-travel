@@ -1,4 +1,4 @@
-import { Platform, StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,8 @@ import * as Location from 'expo-location';
 import MapViewComponent from '@/components/MapView';
 import MapPOIMarker from '@/components/MapPOIMarker';
 import RouteManager from '@/components/RouteManager';
+import AIAssistant from '@/components/AIAssistant';
+import AIRoutePlanner from '@/components/AIRoutePlanner';
 import { MapService } from '@/services/MapService';
 import { POI, POICategory, MapRegion } from '@/types/poi';
 import { Route } from '@/services/DirectionsService';
@@ -27,11 +29,17 @@ const MapsScreen = observer(() => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
   const [showUserLocation, setShowUserLocation] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  
+  // AI состояния
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showAIRoutePlanner, setShowAIRoutePlanner] = useState(false);
+  const [aiRoutes, setAiRoutes] = useState<any[]>([]);
+  const [selectedAIRoute, setSelectedAIRoute] = useState<any>(null);
 
   useEffect(() => {
     if (!authStore.isAuth) {
@@ -56,8 +64,8 @@ const MapsScreen = observer(() => {
           'Для отображения вашей позиции на карте необходимо разрешить доступ к геолокации'
         );
       }
-    } catch (error) {
-      console.error('Ошибка запроса разрешения на геолокацию:', error);
+    } catch (err) {
+      console.error('Ошибка запроса разрешения на геолокацию:', err);
     }
   };
 
@@ -189,6 +197,31 @@ const MapsScreen = observer(() => {
     });
   };
 
+  // AI обработчики
+  const handleAIRecommendation = (recommendation: any) => {
+    console.log('AI рекомендация:', recommendation);
+    // Здесь можно обработать рекомендацию от AI
+    if (recommendation.action === 'show_attractions') {
+      setSelectedCategory(POICategory.ATTRACTION);
+    } else if (recommendation.action === 'show_restaurants') {
+      setSelectedCategory(POICategory.RESTAURANT);
+    } else if (recommendation.action === 'create_route') {
+      setShowAIRoutePlanner(true);
+    }
+  };
+
+  const handleAIRouteCreated = (route: any) => {
+    console.log('AI маршрут создан:', route);
+    setAiRoutes(prev => [...prev, route]);
+    setSelectedAIRoute(route);
+  };
+
+  const handleAIRouteSelect = (route: any) => {
+    console.log('AI маршрут выбран:', route);
+    setSelectedAIRoute(route);
+    // Здесь можно отобразить маршрут на карте
+  };
+
   const handleRouteGenerated = (route: Route | null) => {
     setCurrentRoute(route);
   };
@@ -258,7 +291,7 @@ const MapsScreen = observer(() => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Заголовок */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Карты Ростова</Text>
@@ -341,6 +374,29 @@ const MapsScreen = observer(() => {
               color="#007AFF" 
             />
           </TouchableOpacity>
+
+          {/* AI кнопки */}
+          <TouchableOpacity
+            style={[styles.controlButton, styles.aiButton]}
+            onPress={() => setShowAIAssistant(!showAIAssistant)}
+          >
+            <IconSymbol 
+              name="brain.head.profile" 
+              size={20} 
+              color={showAIAssistant ? '#FF6B6B' : '#007AFF'} 
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.controlButton, styles.aiButton]}
+            onPress={() => setShowAIRoutePlanner(!showAIRoutePlanner)}
+          >
+            <IconSymbol 
+              name="sparkles" 
+              size={20} 
+              color={showAIRoutePlanner ? '#FF6B6B' : '#007AFF'} 
+            />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -414,7 +470,27 @@ const MapsScreen = observer(() => {
           </View>
         </View>
       )}
-    </View>
+
+      {/* AI-Помощник */}
+      {showAIAssistant && (
+        <View style={styles.aiOverlay}>
+          <AIAssistant
+            onRecommendationPress={handleAIRecommendation}
+            onRouteCreate={handleAIRouteCreated}
+          />
+        </View>
+      )}
+
+      {/* AI-Планировщик маршрутов */}
+      {showAIRoutePlanner && (
+        <View style={styles.aiOverlay}>
+          <AIRoutePlanner
+            onRouteCreated={handleAIRouteCreated}
+            onRouteSelect={handleAIRouteSelect}
+          />
+        </View>
+      )}
+    </ScrollView>
   );
 });
 
@@ -442,6 +518,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     paddingTop: 60,
@@ -531,7 +610,7 @@ const styles = StyleSheet.create({
     borderColor: '#E9ECEF',
   },
   mapContainer: {
-    flex: 1,
+    height: 400,
     margin: 20,
     borderRadius: 15,
     overflow: 'hidden',
@@ -624,6 +703,21 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     marginLeft: 6,
     fontWeight: '500',
+  },
+  // AI стили
+  aiButton: {
+    backgroundColor: '#F0F8FF',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  aiOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
   },
 });
 
