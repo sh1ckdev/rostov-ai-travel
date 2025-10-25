@@ -342,30 +342,31 @@ class MapService {
   // Преобразование типов 2GIS в наши категории
   map2GISTypeToCategory(twogisTypes) {
     if (!twogisTypes || twogisTypes.length === 0) {
-      return require('../models/poi-model').POICategory.OTHER;
+      return 'other';
     }
 
+    // Используем строковые значения напрямую
     const typeMapping = {
-      'Достопримечательности': require('../models/poi-model').POICategory.ATTRACTION,
-      'Музеи': require('../models/poi-model').POICategory.CULTURE,
-      'Рестораны': require('../models/poi-model').POICategory.RESTAURANT,
-      'Кафе': require('../models/poi-model').POICategory.RESTAURANT,
-      'Отели': require('../models/poi-model').POICategory.HOTEL,
-      'Гостиницы': require('../models/poi-model').POICategory.HOTEL,
-      'Торговые центры': require('../models/poi-model').POICategory.SHOPPING,
-      'Магазины': require('../models/poi-model').POICategory.SHOPPING,
-      'Развлечения': require('../models/poi-model').POICategory.ENTERTAINMENT,
-      'Транспорт': require('../models/poi-model').POICategory.TRANSPORT,
-      'Больницы': require('../models/poi-model').POICategory.HEALTH,
-      'Аптеки': require('../models/poi-model').POICategory.HEALTH,
-      'Учебные заведения': require('../models/poi-model').POICategory.EDUCATION,
-      'Церкви': require('../models/poi-model').POICategory.RELIGIOUS,
-      'Храмы': require('../models/poi-model').POICategory.RELIGIOUS,
-      'Парки': require('../models/poi-model').POICategory.NATURE,
-      'Скверы': require('../models/poi-model').POICategory.NATURE,
-      'Театры': require('../models/poi-model').POICategory.CULTURE,
-      'Спортивные объекты': require('../models/poi-model').POICategory.SPORT,
-      'Фитнес-клубы': require('../models/poi-model').POICategory.SPORT
+      'Достопримечательности': 'attraction',
+      'Музеи': 'culture',
+      'Рестораны': 'restaurant',
+      'Кафе': 'restaurant',
+      'Отели': 'hotel',
+      'Гостиницы': 'hotel',
+      'Торговые центры': 'shopping',
+      'Магазины': 'shopping',
+      'Развлечения': 'entertainment',
+      'Транспорт': 'transport',
+      'Больницы': 'health',
+      'Аптеки': 'health',
+      'Учебные заведения': 'education',
+      'Церкви': 'religious',
+      'Храмы': 'religious',
+      'Парки': 'nature',
+      'Скверы': 'nature',
+      'Театры': 'culture',
+      'Спортивные объекты': 'sport',
+      'Фитнес-клубы': 'sport'
     };
 
     for (const type of twogisTypes) {
@@ -374,7 +375,7 @@ class MapService {
       }
     }
 
-    return require('../models/poi-model').POICategory.OTHER;
+    return 'other';
   }
 
   // Получить статистику по карте
@@ -447,16 +448,9 @@ class MapService {
       for (const item of items) {
         try {
           // Проверяем, есть ли уже такой POI (по координатам)
+          // Используем простой запрос вместо $near для избежания проблем с индексами
           const existingPOI = await POI.findOne({
-            location: {
-              $near: {
-                $geometry: {
-                  type: 'Point',
-                  coordinates: [item.point.lon, item.point.lat]
-                },
-                $maxDistance: 100 // 100 метров
-              }
-            }
+            'location.coordinates': [item.point.lon, item.point.lat]
           });
 
           if (existingPOI) {
@@ -465,11 +459,11 @@ class MapService {
           }
 
           // Определяем категорию
-          let category = 'OTHER';
+          let category = 'other';
           if (item.rubrics && item.rubrics.length > 0) {
             const mappedCategory = this.map2GISTypeToCategory(item.rubrics.map(r => r.name));
-            // Если возвращается объект enum, берем значение
-            category = typeof mappedCategory === 'string' ? mappedCategory : mappedCategory?.value || 'OTHER';
+            // Преобразуем в строку
+            category = typeof mappedCategory === 'string' ? mappedCategory : 'other';
           }
 
           // Создаем объект POI
@@ -479,20 +473,34 @@ class MapService {
             continue;
           }
 
+          // Валидация координат
+          const lon = parseFloat(item.point.lon);
+          const lat = parseFloat(item.point.lat);
+          
+          if (isNaN(lon) || isNaN(lat) || lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+            console.log(`Пропускаем POI ${item.name}: некорректные координаты`);
+            continue;
+          }
+
           const poiData = {
             name: item.name.substring(0, 200), // Ограничиваем длину
             description: (item.description?.text || item.address_name || '').substring(0, 1000),
             location: {
               type: 'Point',
-              coordinates: [item.point.lon, item.point.lat]
+              coordinates: [lon, lat]
             },
             category: category,
             address: (item.address_name || '').substring(0, 500),
-            rating: item.rating || 0,
-            imageUrl: (item.photos && item.photos.length > 0 && item.photos[0].url) ? item.photos[0].url : null,
+            rating: Math.min(Math.max(item.rating || 0, 0), 5), // Ограничиваем от 0 до 5
             isActive: true,
-            tags: item.rubrics ? item.rubrics.map(r => r.name).slice(0, 10) : [] // Максимум 10 тегов
+            tags: item.rubrics ? item.rubrics.map(r => r.name).slice(0, 10).filter(Boolean) : [] // Максимум 10 тегов
           };
+
+          // Добавляем imageUrl только если он валиден
+          const imageUrl = (item.photos && item.photos.length > 0 && item.photos[0].url) ? item.photos[0].url : null;
+          if (imageUrl && /^https?:\/\//.test(imageUrl)) {
+            poiData.imageUrl = imageUrl;
+          }
 
           poisToSave.push(poiData);
         } catch (error) {
