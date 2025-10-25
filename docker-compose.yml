@@ -14,7 +14,7 @@ services:
       - DB_URL=mongodb://mongo:27017/rostov-ai-travel
       - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-your-super-secret-jwt-access-key-2024}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-jwt-refresh-key-2024}
-      - YANDEX_MAPS_API_KEY=${YANDEX_MAPS_API_KEY}
+      - TWOGIS_API_KEY=${TWOGIS_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - CORS_ORIGIN=*
     depends_on:
