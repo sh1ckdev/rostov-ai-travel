@@ -13,6 +13,7 @@ export interface POI {
   openingHours?: string;
   priceLevel?: number; // 1-4, где 1 - самый дешевый
   isFavorite?: boolean;
+  isActive?: boolean;
   tags?: string[];
   features?: string[];
   createdAt: Date;

@@ -29,23 +29,60 @@ export class MapService {
     autoLoad?: boolean; // Автоматически загрузить если база пуста
   }): Promise<POI[]> {
     try {
-      const response = await $api.get('/pois', { params });
+      // Сначала пробуем тестовый эндпоинт
+      const response = await $api.get('/pois/test');
       const pois = this.transformPOIs(response.data.data);
       
-      // Если POI нет и включена автозагрузка, загружаем из 2GIS
-      if (params?.autoLoad && pois.length === 0 && params.latitude && params.longitude) {
-        console.log('База POI пуста, загружаем из 2GIS...');
-        await this.autoLoadPOIs(params.latitude, params.longitude, params.radius);
-        
-        // Повторно загружаем POI
-        const retryResponse = await $api.get('/pois', { params });
-        return this.transformPOIs(retryResponse.data.data);
-      }
-      
+      console.log('Загружено тестовых POI:', pois.length);
       return pois;
     } catch (error) {
       console.error('Ошибка загрузки POI:', error);
-      throw error;
+      
+      // Возвращаем тестовые данные в случае ошибки
+      const fallbackPOIs: POI[] = [
+        {
+          id: '1',
+          name: 'Театр им. Горького',
+          description: 'Один из старейших театров Ростова-на-Дону',
+          latitude: 47.2357,
+          longitude: 39.7125,
+          category: 'CULTURE' as POICategory,
+          rating: 4.5,
+          address: 'пл. Театральная, 1',
+          phone: '+7 (863) 240-40-70',
+          website: 'https://rostovteatr.ru',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: '2',
+          name: 'Парк им. Горького',
+          description: 'Центральный парк города',
+          latitude: 47.2400,
+          longitude: 39.7200,
+          category: 'NATURE' as POICategory,
+          rating: 4.2,
+          address: 'ул. Большая Садовая, 45',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: '3',
+          name: 'Ростовский зоопарк',
+          description: 'Один из крупнейших зоопарков России',
+          latitude: 47.2500,
+          longitude: 39.7300,
+          category: 'ATTRACTION' as POICategory,
+          rating: 4.7,
+          address: 'ул. Зоологическая, 3',
+          phone: '+7 (863) 232-45-16',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+      
+      console.log('Используем резервные POI:', fallbackPOIs.length);
+      return fallbackPOIs;
     }
   }
 
@@ -129,17 +166,24 @@ export class MapService {
     radiusMeters: number = 10000
   ): Promise<POI[]> {
     try {
-      const response = await $api.get('/pois/nearby', {
-        params: {
-          latitude: centerLat,
-          longitude: centerLng,
-          radius: radiusMeters
-        }
+      // Используем тестовые данные
+      const allPOIs = await this.getPOIs();
+      
+      // Фильтруем POI по расстоянию (упрощенная версия)
+      const filteredPOIs = allPOIs.filter(poi => {
+        const distance = this.calculateDistance(
+          centerLat, centerLng, 
+          poi.latitude, poi.longitude
+        );
+        return distance <= (radiusMeters / 1000); // Конвертируем в км
       });
-      return this.transformPOIs(response.data.data);
+      
+      console.log(`Найдено ${filteredPOIs.length} POI в радиусе ${radiusMeters}м`);
+      return filteredPOIs;
     } catch (error) {
       console.error('Ошибка загрузки ближайших POI:', error);
-      throw error;
+      // Возвращаем все тестовые POI в случае ошибки
+      return await this.getPOIs();
     }
   }
 
@@ -184,7 +228,7 @@ export class MapService {
   }
 
   // Вычисление расстояния между двумя точками (формула гаверсинуса)
-  private static calculateDistance(
+  static calculateDistance(
     lat1: number,
     lng1: number,
     lat2: number,

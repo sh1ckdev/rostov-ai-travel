@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert, Platform, Text, TouchableOpacity, Dimensions } from 'react-native';
-import { MapView, Marker, Polyline } from 'expo-maps';
+import { View, StyleSheet, Alert, Platform, Text, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import { Route } from '../services/DirectionsService';
 import { IconSymbol } from './ui/icon-symbol';
@@ -187,147 +186,61 @@ const OpenStreetMapView: React.FC<OpenStreetMapViewProps> = ({
 
   return (
     <View style={[styles.container, style]}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={region}
-        onPress={handleMapPress}
-        onMapReady={() => setMapReady(true)}
-        mapType="standard"
-        showsUserLocation={showUserLocation && !!location}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-        showsBuildings={true}
-        showsTraffic={false}
-        showsIndoors={true}
-        loadingEnabled={true}
-        loadingIndicatorColor="#007AFF"
-        loadingBackgroundColor="#FFFFFF"
-      >
-        {/* Маркеры POI */}
-        {pois.map((poi) => {
-          const isSelected = selectedPOIs.some(p => p.id === poi.id);
-          return (
-            <Marker
-              key={poi.id}
-              coordinate={{
-                latitude: poi.latitude,
-                longitude: poi.longitude,
-              }}
-              title={poi.name}
-              description={poi.description}
-              onPress={() => handleMarkerPress(poi)}
-            >
-              <View style={[
-                styles.markerContainer,
-                { backgroundColor: getMarkerColor(poi.category) },
-                isSelected && styles.selectedMarker
-              ]}>
+      {/* Временная заглушка для карты */}
+      <View style={styles.mapPlaceholder}>
+        <View style={styles.mapHeader}>
+          <IconSymbol name="map.fill" size={32} color="#007AFF" />
+          <View style={styles.mapInfo}>
+            <Text style={styles.mapTitle}>OpenStreetMap</Text>
+            <Text style={styles.mapSubtitle}>
+              {region.latitude.toFixed(4)}, {region.longitude.toFixed(4)}
+            </Text>
+          </View>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.markersContainer}
+        >
+          {pois.map((poi) => {
+            const isSelected = selectedPOIs.some(p => p.id === poi.id);
+            return (
+              <TouchableOpacity
+                key={poi.id}
+                style={[
+                  styles.markerCard,
+                  { backgroundColor: getMarkerColor(poi.category) },
+                  isSelected && styles.selectedMarker
+                ]}
+                onPress={() => handleMarkerPress(poi)}
+              >
                 <IconSymbol
                   name={getMarkerIcon(poi.category)}
-                  size={16}
+                  size={20}
                   color="#FFFFFF"
                   weight="bold"
                 />
-              </View>
-            </Marker>
-          );
-        })}
+                <Text style={styles.markerText}>{poi.name}</Text>
+                {poi.rating > 0 && (
+                  <Text style={styles.ratingText}>★ {poi.rating.toFixed(1)}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-        {/* Маршрут */}
-        {route && route.polyline && (
-          <Polyline
-            coordinates={route.polyline}
-            strokeColor="#007AFF"
-            strokeWidth={4}
-            lineDashPattern={[1]}
-          />
-        )}
-
-        {/* Детали маршрута */}
-        {route && route.legs && route.legs.length > 0 && (
-          <>
-            {/* Начальная точка */}
-            <Marker
-              coordinate={{
-                latitude: route.legs[0].start_location.latitude,
-                longitude: route.legs[0].start_location.longitude,
-              }}
-              title="Начало маршрута"
-            >
-              <View style={[styles.markerContainer, { backgroundColor: '#4ECDC4' }]}>
-                <IconSymbol name="play.fill" size={16} color="#FFFFFF" weight="bold" />
-              </View>
-            </Marker>
-
-            {/* Конечная точка */}
-            <Marker
-              coordinate={{
-                latitude: route.legs[route.legs.length - 1].end_location.latitude,
-                longitude: route.legs[route.legs.length - 1].end_location.longitude,
-              }}
-              title="Конец маршрута"
-            >
-              <View style={[styles.markerContainer, { backgroundColor: '#FF6B6B' }]}>
-                <IconSymbol name="stop.fill" size={16} color="#FFFFFF" weight="bold" />
-              </View>
-            </Marker>
-          </>
-        )}
-      </MapView>
-
-      {/* Информация о карте */}
-      <View style={styles.mapInfo}>
-        <View style={styles.mapInfoItem}>
-          <IconSymbol name="map" size={16} color="#666" />
-          <Text style={styles.mapInfoText}>OpenStreetMap</Text>
-        </View>
-        <View style={styles.mapInfoItem}>
-          <IconSymbol name="location" size={16} color="#666" />
-          <Text style={styles.mapInfoText}>
-            {region.latitude.toFixed(4)}, {region.longitude.toFixed(4)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Кнопки управления */}
-      <View style={styles.mapControls}>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            const newRegion = {
-              ...region,
-              latitude: 47.2357,
-              longitude: 39.7125,
-            };
-            setRegion(newRegion);
-            if (mapRef.current) {
-              mapRef.current.animateToRegion(newRegion, 1000);
-            }
-          }}
-        >
-          <IconSymbol name="location" size={20} color="#007AFF" />
-        </TouchableOpacity>
-        
-        {location && (
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => {
-              const userRegion = {
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              };
-              setRegion(userRegion);
-              if (mapRef.current) {
-                mapRef.current.animateToRegion(userRegion, 1000);
-              }
-            }}
-          >
-            <IconSymbol name="location.fill" size={20} color="#007AFF" />
-          </TouchableOpacity>
+        {/* Информация о маршруте */}
+        {route && (
+          <View style={styles.routeInfo}>
+            <IconSymbol name="figure.walk" size={16} color="#007AFF" />
+            <View style={styles.routeInfoText}>
+              <Text style={styles.routeInfoTitle}>Маршрут построен</Text>
+              <Text style={styles.routeInfoDistance}>
+                {route.distance} • {route.duration}
+              </Text>
+            </View>
+          </View>
         )}
       </View>
 
@@ -340,8 +253,100 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  map: {
+  mapPlaceholder: {
     flex: 1,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF',
+  },
+  mapInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  mapTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  mapSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  markersContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 12,
+  },
+  markerCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: 'center',
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  markerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  ratingText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  selectedMarker: {
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.05 }],
+  },
+  routeInfo: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 122, 255, 0.95)',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  routeInfoText: {
+    gap: 2,
+  },
+  routeInfoTitle: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  routeInfoDistance: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    opacity: 0.9,
   },
   errorContainer: {
     flex: 1,
@@ -373,57 +378,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  markerContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.3)',
-    elevation: 5,
-  },
-  selectedMarker: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    transform: [{ scale: 1.2 }],
-  },
-  mapInfo: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 8,
-    padding: 8,
-    gap: 4,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  mapInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  mapInfoText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-  mapControls: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    gap: 8,
-  },
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.2)',
-    elevation: 3,
   },
 });
 
