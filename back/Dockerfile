@@ -4,8 +4,9 @@ FROM node:18-alpine
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем системные зависимости для Puppeteer и других пакетов
+# Устанавливаем системные зависимости
 RUN apk add --no-cache \
+    curl \
     chromium \
     nss \
     freetype \
@@ -18,30 +19,35 @@ RUN apk add --no-cache \
 # Устанавливаем переменные окружения для Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV NODE_ENV=production
+ENV PORT=5000
 
 # Копируем package.json и package-lock.json
 COPY package*.json ./
 
 # Устанавливаем зависимости
-RUN npm ci --only=production
+RUN npm ci --only=production && npm cache clean --force
 
 # Копируем исходный код
 COPY . .
 
-# Создаем пользователя для безопасности
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Создаем директорию для логов
+RUN mkdir -p /app/logs
 
-# Меняем владельца файлов
-RUN chown -R nodejs:nodejs /app
+# Создаем пользователя для безопасности
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+# Переключаемся на непривилегированного пользователя
 USER nodejs
 
 # Открываем порт
 EXPOSE 5000
 
-# Устанавливаем переменные окружения
-ENV NODE_ENV=production
-ENV PORT=5000
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:5000/api/test || exit 1
 
 # Команда запуска
 CMD ["node", "index.js"]

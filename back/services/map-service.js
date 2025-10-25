@@ -3,32 +3,52 @@ const POI = require('../models/poi-model');
 
 class MapService {
   constructor() {
-    this.googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
-    this.baseUrl = 'https://maps.googleapis.com/maps/api';
+    this.yandexMapsApiKey = process.env.YANDEX_MAPS_API_KEY;
+    this.geocoderUrl = 'https://geocode-maps.yandex.ru/1.x/';
+    this.routerUrl = 'https://api.routing.yandex.net/v2/route';
+    this.searchUrl = 'https://search-maps.yandex.ru/v1/';
   }
 
   // Получить направления между точками
   async getDirections(origin, destination, waypoints = [], mode = 'driving') {
     try {
-      const params = {
-        origin: `${origin.latitude},${origin.longitude}`,
-        destination: `${destination.latitude},${destination.longitude}`,
-        mode,
-        key: this.googleMapsApiKey
-      };
+      // Формируем точки маршрута
+      const points = [
+        [origin.longitude, origin.latitude],
+        ...waypoints.map(wp => [wp.longitude, wp.latitude]),
+        [destination.longitude, destination.latitude]
+      ];
 
-      if (waypoints.length > 0) {
-        params.waypoints = waypoints
-          .map(wp => `${wp.latitude},${wp.longitude}`)
-          .join('|');
-      }
+      const response = await axios.get(this.routerUrl, {
+        params: {
+          apikey: this.yandexMapsApiKey,
+          waypoints: points.map(p => p.join(',')).join('|'),
+          mode: this.mapModeToYandex(mode)
+        }
+      });
 
-      const response = await axios.get(`${this.baseUrl}/directions/json`, { params });
-      
-      if (response.data.status === 'OK') {
-        return response.data.routes[0];
+      if (response.data && response.data.route) {
+        const route = response.data.route;
+        return {
+          legs: [{
+            distance: {
+              text: `${(route.distance.value / 1000).toFixed(1)} км`,
+              value: route.distance.value
+            },
+            duration: {
+              text: this.formatDuration(route.duration.value),
+              value: route.duration.value
+            },
+            steps: route.legs || [],
+            start_address: await this.reverseGeocode(origin.latitude, origin.longitude).then(r => r.formattedAddress).catch(() => ''),
+            end_address: await this.reverseGeocode(destination.latitude, destination.longitude).then(r => r.formattedAddress).catch(() => '')
+          }],
+          overview_polyline: {
+            points: this.encodePolyline(route.geometry.coordinates)
+          }
+        };
       } else {
-        throw new Error(`Google Directions API error: ${response.data.status}`);
+        throw new Error('Yandex Router API error');
       }
     } catch (error) {
       console.error('Directions API error:', error.message);
@@ -39,23 +59,27 @@ class MapService {
   // Геокодирование - преобразование адреса в координаты
   async geocode(address) {
     try {
-      const params = {
-        address,
-        key: this.googleMapsApiKey
-      };
+      const response = await axios.get(this.geocoderUrl, {
+        params: {
+          apikey: this.yandexMapsApiKey,
+          geocode: address,
+          format: 'json',
+          lang: 'ru_RU'
+        }
+      });
 
-      const response = await axios.get(`${this.baseUrl}/geocode/json`, { params });
+      const geoObject = response.data.response.GeoObjectCollection.featureMember[0];
       
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const result = response.data.results[0];
+      if (geoObject) {
+        const point = geoObject.GeoObject.Point.pos.split(' ');
         return {
-          latitude: result.geometry.location.lat,
-          longitude: result.geometry.location.lng,
-          formattedAddress: result.formatted_address,
-          placeId: result.place_id
+          latitude: parseFloat(point[1]),
+          longitude: parseFloat(point[0]),
+          formattedAddress: geoObject.GeoObject.metaDataProperty.GeocoderMetaData.text,
+          placeId: geoObject.GeoObject.metaDataProperty.GeocoderMetaData.Address.formatted
         };
       } else {
-        throw new Error(`Geocoding failed: ${response.data.status}`);
+        throw new Error('Geocoding failed: No results found');
       }
     } catch (error) {
       console.error('Geocoding error:', error.message);
@@ -66,22 +90,26 @@ class MapService {
   // Обратное геокодирование - преобразование координат в адрес
   async reverseGeocode(latitude, longitude) {
     try {
-      const params = {
-        latlng: `${latitude},${longitude}`,
-        key: this.googleMapsApiKey
-      };
+      const response = await axios.get(this.geocoderUrl, {
+        params: {
+          apikey: this.yandexMapsApiKey,
+          geocode: `${longitude},${latitude}`,
+          format: 'json',
+          lang: 'ru_RU'
+        }
+      });
 
-      const response = await axios.get(`${this.baseUrl}/geocode/json`, { params });
+      const geoObject = response.data.response.GeoObjectCollection.featureMember[0];
       
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const result = response.data.results[0];
+      if (geoObject) {
+        const address = geoObject.GeoObject.metaDataProperty.GeocoderMetaData.Address;
         return {
-          formattedAddress: result.formatted_address,
-          placeId: result.place_id,
-          addressComponents: result.address_components
+          formattedAddress: geoObject.GeoObject.metaDataProperty.GeocoderMetaData.text,
+          placeId: address.formatted,
+          addressComponents: address.Components || []
         };
       } else {
-        throw new Error(`Reverse geocoding failed: ${response.data.status}`);
+        throw new Error('Reverse geocoding failed: No results found');
       }
     } catch (error) {
       console.error('Reverse geocoding error:', error.message);
@@ -92,66 +120,70 @@ class MapService {
   // Поиск мест поблизости
   async findNearbyPlaces(latitude, longitude, radius = 5000, type = null) {
     try {
-      const params = {
-        location: `${latitude},${longitude}`,
-        radius,
-        key: this.googleMapsApiKey
-      };
+      const response = await axios.get(this.searchUrl, {
+        params: {
+          apikey: this.yandexMapsApiKey,
+          text: type || 'организация',
+          lang: 'ru_RU',
+          ll: `${longitude},${latitude}`,
+          spn: `${radius / 111000},${radius / 111000}`, // Примерное преобразование метров в градусы
+          type: 'biz',
+          results: 50
+        }
+      });
 
-      if (type) {
-        params.type = type;
-      }
-
-      const response = await axios.get(`${this.baseUrl}/place/nearbysearch/json`, { params });
-      
-      if (response.data.status === 'OK') {
-        return response.data.results.map(place => ({
-          placeId: place.place_id,
-          name: place.name,
-          latitude: place.geometry.location.lat,
-          longitude: place.geometry.location.lng,
-          rating: place.rating || 0,
-          types: place.types,
-          vicinity: place.vicinity,
-          photos: place.photos || []
+      if (response.data && response.data.features) {
+        return response.data.features.map(place => ({
+          placeId: place.properties.id || place.properties.name,
+          name: place.properties.name,
+          latitude: place.geometry.coordinates[1],
+          longitude: place.geometry.coordinates[0],
+          rating: 0, // Yandex не предоставляет рейтинг в Search API
+          types: [place.properties.CompanyMetaData?.Categories?.[0]?.name || 'organization'],
+          vicinity: place.properties.description || '',
+          photos: []
         }));
       } else {
-        throw new Error(`Places API error: ${response.data.status}`);
+        return [];
       }
     } catch (error) {
-      console.error('Places API error:', error.message);
+      console.error('Search API error:', error.message);
       throw error;
     }
   }
 
-  // Получить детали места по place_id
-  async getPlaceDetails(placeId, fields = ['name', 'formatted_address', 'geometry', 'rating', 'photos', 'types']) {
+  // Получить детали места
+  async getPlaceDetails(placeId, fields = []) {
     try {
-      const params = {
-        place_id: placeId,
-        fields: fields.join(','),
-        key: this.googleMapsApiKey
-      };
+      // Yandex не имеет прямого аналога Place Details API
+      // Используем поиск по ID или названию
+      const response = await axios.get(this.searchUrl, {
+        params: {
+          apikey: this.yandexMapsApiKey,
+          text: placeId,
+          lang: 'ru_RU',
+          type: 'biz',
+          results: 1
+        }
+      });
 
-      const response = await axios.get(`${this.baseUrl}/place/details/json`, { params });
-      
-      if (response.data.status === 'OK') {
-        const result = response.data.result;
+      if (response.data && response.data.features && response.data.features.length > 0) {
+        const place = response.data.features[0];
         return {
-          placeId: result.place_id,
-          name: result.name,
-          formattedAddress: result.formatted_address,
-          latitude: result.geometry.location.lat,
-          longitude: result.geometry.location.lng,
-          rating: result.rating || 0,
-          types: result.types || [],
-          photos: result.photos || []
+          placeId: place.properties.id || place.properties.name,
+          name: place.properties.name,
+          formattedAddress: place.properties.description || '',
+          latitude: place.geometry.coordinates[1],
+          longitude: place.geometry.coordinates[0],
+          rating: 0,
+          types: [place.properties.CompanyMetaData?.Categories?.[0]?.name || 'organization'],
+          photos: []
         };
       } else {
-        throw new Error(`Place Details API error: ${response.data.status}`);
+        throw new Error('Place not found');
       }
     } catch (error) {
-      console.error('Place Details API error:', error.message);
+      console.error('Place Details error:', error.message);
       throw error;
     }
   }
@@ -176,15 +208,46 @@ class MapService {
     return deg * (Math.PI / 180);
   }
 
-  // Синхронизировать POI с Google Places
-  async syncPOIWithGooglePlaces(poiId) {
+  // Преобразование режима передвижения в формат Yandex
+  mapModeToYandex(mode) {
+    const modeMap = {
+      'driving': 'auto',
+      'walking': 'pedestrian',
+      'bicycling': 'bicycle',
+      'transit': 'masstransit'
+    };
+    return modeMap[mode] || 'auto';
+  }
+
+  // Форматирование времени в читаемый вид
+  formatDuration(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours} ч ${minutes} мин`;
+    }
+    return `${minutes} мин`;
+  }
+
+  // Кодирование координат в polyline (упрощенная версия)
+  encodePolyline(coordinates) {
+    if (!coordinates || coordinates.length === 0) return '';
+    
+    // Простое кодирование - просто соединяем координаты
+    // В реальном проекте используйте библиотеку @mapbox/polyline
+    return coordinates.map(coord => coord.join(',')).join(';');
+  }
+
+  // Синхронизировать POI с Yandex Maps
+  async syncPOIWithYandexMaps(poiId) {
     try {
       const poi = await POI.findById(poiId);
       if (!poi) {
         throw new Error('POI not found');
       }
 
-      // Поиск ближайших мест в Google Places
+      // Поиск ближайших мест в Yandex Maps
       const nearbyPlaces = await this.findNearbyPlaces(
         poi.latitude,
         poi.longitude,
@@ -210,16 +273,12 @@ class MapService {
       }
 
       if (bestMatch) {
-        // Обновляем POI данными из Google Places
+        // Обновляем POI данными из Yandex Maps
         const placeDetails = await this.getPlaceDetails(bestMatch.placeId);
         
-        poi.googlePlaceId = placeDetails.placeId;
+        poi.yandexPlaceId = placeDetails.placeId;
         poi.rating = placeDetails.rating || poi.rating;
-        poi.googleTypes = placeDetails.types;
-        
-        if (placeDetails.photos && placeDetails.photos.length > 0) {
-          poi.imageUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${placeDetails.photos[0].photo_reference}&key=${this.googleMapsApiKey}`;
-        }
+        poi.yandexTypes = placeDetails.types;
 
         await poi.save();
         return poi;
@@ -240,43 +299,38 @@ class MapService {
         .limit(limit)
         .populate('createdBy', 'username');
 
-      // Если POI недостаточно, дополняем данными из Google Places
+      // Если POI недостаточно, дополняем данными из Yandex Maps
       if (localPOIs.length < limit) {
-        const googlePlaces = await this.findNearbyPlaces(
+        const yandexPlaces = await this.findNearbyPlaces(
           latitude,
           longitude,
           radius,
-          'tourist_attraction'
+          'достопримечательность'
         );
 
         // Фильтруем места, которых нет в нашей базе
         const existingPlaceIds = localPOIs
-          .filter(poi => poi.googlePlaceId)
-          .map(poi => poi.googlePlaceId);
+          .filter(poi => poi.yandexPlaceId)
+          .map(poi => poi.yandexPlaceId);
 
-        const newPlaces = googlePlaces
+        const newPlaces = yandexPlaces
           .filter(place => !existingPlaceIds.includes(place.placeId))
           .slice(0, limit - localPOIs.length);
 
-        // Преобразуем Google Places в формат POI
-        const googlePOIs = await Promise.all(
-          newPlaces.map(async (place) => {
-            const placeDetails = await this.getPlaceDetails(place.placeId);
-            return {
-              name: placeDetails.name,
-              description: `Место найдено через Google Places`,
-              latitude: placeDetails.latitude,
-              longitude: placeDetails.longitude,
-              category: this.mapGoogleTypeToCategory(placeDetails.types),
-              rating: placeDetails.rating || 0,
-              googlePlaceId: placeDetails.placeId,
-              googleTypes: placeDetails.types,
-              isGooglePlace: true
-            };
-          })
-        );
+        // Преобразуем Yandex Places в формат POI
+        const yandexPOIs = newPlaces.map(place => ({
+          name: place.name,
+          description: `Место найдено через Яндекс.Карты`,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          category: this.mapYandexTypeToCategory(place.types),
+          rating: place.rating || 0,
+          yandexPlaceId: place.placeId,
+          yandexTypes: place.types,
+          isYandexPlace: true
+        }));
 
-        return [...localPOIs, ...googlePOIs];
+        return [...localPOIs, ...yandexPOIs];
       }
 
       return localPOIs;
@@ -286,26 +340,35 @@ class MapService {
     }
   }
 
-  // Преобразование типов Google Places в наши категории
-  mapGoogleTypeToCategory(googleTypes) {
+  // Преобразование типов Yandex Maps в наши категории
+  mapYandexTypeToCategory(yandexTypes) {
     const typeMapping = {
-      'tourist_attraction': POI.POICategory.ATTRACTION,
-      'restaurant': POI.POICategory.RESTAURANT,
-      'lodging': POI.POICategory.HOTEL,
-      'shopping_mall': POI.POICategory.SHOPPING,
-      'amusement_park': POI.POICategory.ENTERTAINMENT,
-      'transit_station': POI.POICategory.TRANSPORT,
-      'hospital': POI.POICategory.HEALTH,
-      'university': POI.POICategory.EDUCATION,
-      'church': POI.POICategory.RELIGIOUS,
-      'park': POI.POICategory.NATURE,
-      'museum': POI.POICategory.CULTURE,
-      'gym': POI.POICategory.SPORT
+      'достопримечательность': POI.POICategory.ATTRACTION,
+      'памятник': POI.POICategory.ATTRACTION,
+      'ресторан': POI.POICategory.RESTAURANT,
+      'кафе': POI.POICategory.RESTAURANT,
+      'гостиница': POI.POICategory.HOTEL,
+      'отель': POI.POICategory.HOTEL,
+      'магазин': POI.POICategory.SHOPPING,
+      'торговый центр': POI.POICategory.SHOPPING,
+      'развлечения': POI.POICategory.ENTERTAINMENT,
+      'кино': POI.POICategory.ENTERTAINMENT,
+      'транспорт': POI.POICategory.TRANSPORT,
+      'больница': POI.POICategory.HEALTH,
+      'университет': POI.POICategory.EDUCATION,
+      'церковь': POI.POICategory.RELIGIOUS,
+      'парк': POI.POICategory.NATURE,
+      'музей': POI.POICategory.CULTURE,
+      'театр': POI.POICategory.CULTURE,
+      'спортзал': POI.POICategory.SPORT
     };
 
-    for (const type of googleTypes) {
-      if (typeMapping[type]) {
-        return typeMapping[type];
+    for (const type of yandexTypes) {
+      const lowerType = type.toLowerCase();
+      for (const [key, value] of Object.entries(typeMapping)) {
+        if (lowerType.includes(key)) {
+          return value;
+        }
       }
     }
 
