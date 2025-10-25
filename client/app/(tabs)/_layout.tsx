@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, View, Text, useWindowDimensions } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -37,6 +37,11 @@ export default function TabLayout() {
             marginHorizontal: 25,
             width: width - 50,
             borderRadius: 28,
+            shadowColor: '#000',
+            shadowOffset: { 
+              width: 0, 
+              height: 10 
+            },
             alignSelf: 'center',
           } : {
             position: 'absolute',
@@ -49,6 +54,16 @@ export default function TabLayout() {
             marginHorizontal: 25,
             width: width - 50,
             borderRadius: 28,
+            elevation: 20,
+            shadowColor: '#000',
+            shadowOffset: { 
+              width: 0, 
+              height: 12 
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 25,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.7)',
             alignSelf: 'center',
           },
           tabBarBackground: Platform.OS === 'ios' ? () => (
@@ -139,6 +154,19 @@ export default function TabLayout() {
         />
         
         <Tabs.Screen
+          name="maps"
+          options={{
+            tabBarLabel: 'Карты',
+            tabBarIcon: ({ focused }) => (
+              <TabItem 
+                focused={focused}
+                iconName={focused ? "location.fill" : "location"}
+              />
+            ),
+          }}
+        />
+        
+        <Tabs.Screen
           name="profile"
           options={{
             tabBarLabel: 'Профиль',
@@ -155,9 +183,13 @@ export default function TabLayout() {
   );
 }
 
+// Изменяем TabItem, чтобы он не рендерил текст, если focused
+// Если вы хотите полный контроль над текстом, тогда:
+// 1. Удалите tabBarLabel из Tabs.Screen
+// 2. Верните Text в TabItem, но убедитесь, что его рендеринг корректен.
 const TabItem = ({ focused, iconName }: { // Убрал title из пропсов
   focused: boolean; 
-  iconName: string;
+  iconName: any;
 }) => {
   return (
     <View style={{
