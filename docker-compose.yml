@@ -11,11 +11,11 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DB_URL: mongodb://mongo:27017/rostov-ai-travel
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your-super-secret-jwt-access-key-2024}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-super-secret-jwt-refresh-key-2024}
-      TWOGIS_API_KEY: ${TWOGIS_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DB_URL: mongodb://138.124.14.197:27017/rostov-ai-travel
+      JWT_ACCESS_SECRET: your-super-secret-jwt-access-key-2024-CHANGE-ME
+      JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-2024-CHANGE-ME
+      TWOGIS_API_KEY: 2aaa4ed7-7580-4e80-a139-f60e4be538c7
+      OPENAI_API_KEY: ""
       CORS_ORIGIN: "*"
     depends_on:
       - mongo
