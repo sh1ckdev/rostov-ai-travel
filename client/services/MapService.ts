@@ -23,7 +23,7 @@ export class MapService {
       });
       
       if (response.data && response.data.data) {
-        const pois = this.transformPOIs(response.data.data);
+        const pois = MapService.transformPOIs(response.data.data);
         console.log('Загружено улучшенных POI:', pois.length);
         return pois;
       }
@@ -31,7 +31,7 @@ export class MapService {
       return [];
     } catch (error) {
       console.error('Ошибка загрузки улучшенных POI:', error);
-      return this.getTestPOIs();
+      return MapService.getPOIs();
     }
   }
 
@@ -43,7 +43,7 @@ export class MapService {
       });
       
       if (response.data && response.data.data) {
-        const pois = this.transformPOIs(response.data.data);
+        const pois = MapService.transformPOIs(response.data.data);
         console.log('Найдено POI по названию:', pois.length);
         return pois;
       }
@@ -71,7 +71,7 @@ export class MapService {
     try {
       // Используем улучшенный поиск POI
       if (params?.latitude && params?.longitude) {
-        const pois = await this.getEnhancedPOIs(
+        const pois = await MapService.getEnhancedPOIs(
           params.latitude,
           params.longitude,
           params.radius || 10000,
@@ -145,7 +145,7 @@ export class MapService {
   static async getPOIById(id: string): Promise<POI> {
     try {
       const response = await $api.get(`/pois/${id}`);
-      return this.transformPOI(response.data.data);
+      return MapService.transformPOI(response.data.data);
     } catch (error) {
       console.error('Ошибка загрузки POI:', error);
       throw error;
@@ -156,7 +156,7 @@ export class MapService {
   static async createPOI(poiData: Omit<POI, 'id' | 'createdAt' | 'updatedAt'>): Promise<POI> {
     try {
       const response = await $api.post('/pois', poiData);
-      return this.transformPOI(response.data.data);
+      return MapService.transformPOI(response.data.data);
     } catch (error) {
       console.error('Ошибка создания POI:', error);
       throw error;
@@ -167,7 +167,7 @@ export class MapService {
   static async updatePOI(id: string, poiData: Partial<POI>): Promise<POI> {
     try {
       const response = await $api.put(`/pois/${id}`, poiData);
-      return this.transformPOI(response.data.data);
+      return MapService.transformPOI(response.data.data);
     } catch (error) {
       console.error('Ошибка обновления POI:', error);
       throw error;
@@ -191,7 +191,7 @@ export class MapService {
   }): Promise<POI[]> {
     try {
       const response = await $api.get(`/pois/category/${category}`, { params });
-      return this.transformPOIs(response.data.data);
+      return MapService.transformPOIs(response.data.data);
     } catch (error) {
       console.error('Ошибка загрузки POI по категории:', error);
       throw error;
@@ -207,7 +207,7 @@ export class MapService {
       const response = await $api.get('/pois/search', {
         params: { q: query, ...params }
       });
-      return this.transformPOIs(response.data.data);
+      return MapService.transformPOIs(response.data.data);
     } catch (error) {
       console.error('Ошибка поиска POI:', error);
       throw error;
@@ -222,11 +222,11 @@ export class MapService {
   ): Promise<POI[]> {
     try {
       // Используем тестовые данные
-      const allPOIs = await this.getPOIs();
+      const allPOIs = await MapService.getPOIs();
       
       // Фильтруем POI по расстоянию (упрощенная версия)
       const filteredPOIs = allPOIs.filter(poi => {
-        const distance = this.calculateDistance(
+        const distance = MapService.calculateDistance(
           centerLat, centerLng, 
           poi.latitude, poi.longitude
         );
@@ -238,7 +238,7 @@ export class MapService {
     } catch (error) {
       console.error('Ошибка загрузки ближайших POI:', error);
       // Возвращаем все тестовые POI в случае ошибки
-      return await this.getPOIs();
+      return await MapService.getPOIs();
     }
   }
 
@@ -279,7 +279,7 @@ export class MapService {
 
   // Преобразование массива POI
   private static transformPOIs(backendPOIs: any[]): POI[] {
-    return backendPOIs.map(poi => this.transformPOI(poi));
+    return backendPOIs.map(poi => MapService.transformPOI(poi));
   }
 
   // Вычисление расстояния между двумя точками (формула гаверсинуса)
@@ -290,12 +290,12 @@ export class MapService {
     lng2: number
   ): number {
     const R = 6371; // Радиус Земли в километрах
-    const dLat = this.deg2rad(lat2 - lat1);
-    const dLng = this.deg2rad(lng2 - lng1);
+    const dLat = MapService.deg2rad(lat2 - lat1);
+    const dLng = MapService.deg2rad(lng2 - lng1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.deg2rad(lat1)) *
-        Math.cos(this.deg2rad(lat2)) *
+      Math.cos(MapService.deg2rad(lat1)) *
+        Math.cos(MapService.deg2rad(lat2)) *
         Math.sin(dLng / 2) *
         Math.sin(dLng / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
@@ -491,7 +491,7 @@ export class MapService {
     originLng: number;
     destLat: number;
     destLng: number;
-    waypoints?: Array<{ lat: number; lng: number }>;
+    waypoints?: { lat: number; lng: number }[];
     mode?: 'driving' | 'walking' | 'bicycling' | 'transit';
   }): Promise<any> {
     try {
@@ -578,7 +578,7 @@ export class MapService {
   static async syncPOIWithOSM(poiId: string): Promise<POI> {
     try {
       const response = await $api.post(`/map/sync-poi/${poiId}`);
-      return this.transformPOI(response.data.data);
+      return MapService.transformPOI(response.data.data);
     } catch (error) {
       console.error('Ошибка синхронизации POI:', error);
       throw error;

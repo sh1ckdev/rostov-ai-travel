@@ -151,10 +151,30 @@ class AIController {
   async sendMessage(req, res, next) {
     try {
       const { message, context } = req.body;
+      
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Сообщение не может быть пустым'
+        });
+      }
+
+      // Определяем тип запроса для более точного ответа
+      const isMapRelated = this.isMapRelatedQuery(message);
+      const isTravelRelated = this.isTravelRelatedQuery(message);
+      
+      let systemPrompt = 'Ты - универсальный AI-помощник. Отвечай дружелюбно и полезно на любые вопросы. ';
+      
+      if (isMapRelated || isTravelRelated) {
+        systemPrompt += 'Особенно хорошо ты разбираешься в туризме, картах и путешествиях по Ростову-на-Дону. ';
+        systemPrompt += 'Можешь давать рекомендации по достопримечательностям, ресторанам, отелям и маршрутам. ';
+      }
+      
+      systemPrompt += 'Отвечай на русском языке, будь полезным и дружелюбным.';
 
       // Используем OpenRouter для получения ответа от AI
       const aiController = new AIController();
-      const aiResponse = await aiController.getAIResponse(message, context);
+      const aiResponse = await aiController.getAIResponse(message, context, systemPrompt);
 
       res.json({
         success: true,
@@ -172,14 +192,39 @@ class AIController {
     }
   }
 
+  // Проверяет, связан ли запрос с картами
+  isMapRelatedQuery(message) {
+    const mapKeywords = [
+      'карта', 'карты', 'навигация', 'маршрут', 'дорога', 'путь',
+      'координаты', 'адрес', 'местоположение', 'где находится',
+      'как добраться', 'проехать', 'доехать'
+    ];
+    return mapKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword.toLowerCase())
+    );
+  }
+
+  // Проверяет, связан ли запрос с путешествиями
+  isTravelRelatedQuery(message) {
+    const travelKeywords = [
+      'путешествие', 'туризм', 'отдых', 'отпуск', 'поездка',
+      'достопримечательность', 'музей', 'театр', 'парк',
+      'ресторан', 'кафе', 'отель', 'гостиница', 'размещение',
+      'что посмотреть', 'куда пойти', 'где поесть', 'где остановиться'
+    ];
+    return travelKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword.toLowerCase())
+    );
+  }
+
   // Получить ответ от AI через OpenRouter
-  async getAIResponse(message, context) {
+  async getAIResponse(message, context, customSystemPrompt = null) {
     try {
       if (!this.openRouterApiKey) {
         throw new Error('OpenRouter API key not configured');
       }
 
-      const systemPrompt = `Ты - AI-помощник по туризму в Ростове-на-Дону. 
+      const systemPrompt = customSystemPrompt || `Ты - AI-помощник по туризму в Ростове-на-Дону. 
 Твоя задача - помогать туристам с планированием поездок, рекомендациями мест для посещения, 
 ресторанов, отелей и созданием маршрутов. 
 

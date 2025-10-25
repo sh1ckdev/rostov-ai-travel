@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { IconSymbol } from './ui/icon-symbol';
 import { AIService } from '../services/AIService';
 
@@ -164,7 +164,12 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView style={styles.scrollContainer}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <IconSymbol name="map" size={24} color="#007AFF" />
@@ -347,7 +352,8 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
           ))}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -367,6 +373,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

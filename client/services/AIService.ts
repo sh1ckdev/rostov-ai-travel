@@ -76,7 +76,14 @@ export class AIService {
         message,
         context
       });
-      return response.data.data;
+      
+      // Убеждаемся, что timestamp является объектом Date
+      const data = response.data.data;
+      if (data && data.timestamp) {
+        data.timestamp = new Date(data.timestamp);
+      }
+      
+      return data;
     } catch (error) {
       console.error('Ошибка отправки сообщения AI:', error);
       return {

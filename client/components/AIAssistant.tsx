@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { IconSymbol } from './ui/icon-symbol';
 import { AIService, ChatMessage, AIRecommendation } from '../services/AIService';
 
@@ -24,35 +24,35 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const welcomeMessage: ChatMessage = {
       id: '1',
       role: 'assistant',
-      content: 'Привет! Я ваш AI-помощник по Ростову-на-Дону. Чем могу помочь?',
+      content: 'Привет! Я ваш универсальный AI-помощник. Могу помочь с любыми вопросами - от туризма и карт до общих тем. Чем могу помочь?',
       timestamp: new Date(),
       suggestions: [
         {
           id: '1',
-          title: 'Что посмотреть?',
-          description: 'Показать достопримечательности',
-          category: 'ATTRACTION',
+          title: 'О туризме',
+          description: 'Рассказать о Ростове-на-Дону',
+          category: 'TRAVEL',
           confidence: 0.9,
-          reasoning: 'Популярный вопрос',
-          action: 'show_attractions'
+          reasoning: 'Специализация',
+          action: 'travel_info'
         },
         {
           id: '2',
-          title: 'Где поесть?',
-          description: 'Найти рестораны',
-          category: 'RESTAURANT',
+          title: 'Общие вопросы',
+          description: 'Поговорить на любую тему',
+          category: 'GENERAL',
           confidence: 0.8,
-          reasoning: 'Частый запрос',
-          action: 'show_restaurants'
+          reasoning: 'Универсальность',
+          action: 'general_chat'
         },
         {
           id: '3',
-          title: 'Создать маршрут',
-          description: 'Построить персональный маршрут',
-          category: 'ROUTE',
-          confidence: 0.7,
-          reasoning: 'Поможет спланировать день',
-          action: 'create_route'
+          title: 'Помощь',
+          description: 'Как пользоваться приложением',
+          category: 'HELP',
+          confidence: 0.9,
+          reasoning: 'Поддержка',
+          action: 'help'
         }
       ]
     };
@@ -98,15 +98,28 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ru-RU', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  const formatTime = (date: Date | string) => {
+    try {
+      const dateObj = date instanceof Date ? date : new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return '00:00';
+      }
+      return dateObj.toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (error) {
+      console.error('Ошибка форматирования времени:', error);
+      return '00:00';
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <IconSymbol name="brain.head.profile" size={24} color="#007AFF" />
@@ -188,7 +201,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           />
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -329,6 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E9ECEF',
+    minHeight: 60,
   },
   textInput: {
     flex: 1,
@@ -341,6 +355,8 @@ const styles = StyleSheet.create({
     color: '#333',
     backgroundColor: '#F8F9FA',
     maxHeight: 100,
+    minHeight: 40,
+    textAlignVertical: 'top',
   },
   sendButton: {
     width: 40,
@@ -350,9 +366,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   sendButtonDisabled: {
     backgroundColor: '#E9ECEF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
 });
 
