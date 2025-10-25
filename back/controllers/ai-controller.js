@@ -43,7 +43,8 @@ class AIController {
       } = req.body;
 
       // Используем AI для создания маршрута
-      const aiRoutes = await this.generateAIRoutesWithAI({
+      const aiController = new AIController();
+      const aiRoutes = await aiController.generateAIRoutesWithAI({
         startLocation,
         endLocation,
         interests,
@@ -60,7 +61,8 @@ class AIController {
     } catch (error) {
       console.error('Ошибка создания AI маршрута:', error);
       // Fallback на локальную генерацию
-      const fallbackRoutes = this.generateAIRoutes({
+      const aiController = new AIController();
+      const fallbackRoutes = aiController.generateAIRoutes({
         startLocation: req.body.startLocation,
         endLocation: req.body.endLocation,
         interests: req.body.interests,
@@ -151,7 +153,8 @@ class AIController {
       const { message, context } = req.body;
 
       // Используем OpenRouter для получения ответа от AI
-      const aiResponse = await this.getAIResponse(message, context);
+      const aiController = new AIController();
+      const aiResponse = await aiController.getAIResponse(message, context);
 
       res.json({
         success: true,
@@ -160,7 +163,8 @@ class AIController {
     } catch (error) {
       console.error('Ошибка получения ответа от AI:', error);
       // Fallback на локальную генерацию
-      const fallbackResponse = this.generateAIResponse(message, context);
+      const aiController = new AIController();
+      const fallbackResponse = aiController.generateAIResponse(message, context);
       res.json({
         success: true,
         data: fallbackResponse

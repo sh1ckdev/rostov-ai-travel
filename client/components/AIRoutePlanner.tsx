@@ -6,6 +6,7 @@ import { AIService } from '../services/AIService';
 interface AIRoutePlannerProps {
   onRouteCreated?: (route: any) => void;
   onRouteSelect?: (route: any) => void;
+  onClose?: () => void;
 }
 
 interface RouteParams {
@@ -26,7 +27,8 @@ interface RouteParams {
 
 const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   onRouteCreated,
-  onRouteSelect
+  onRouteSelect,
+  onClose
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [routes, setRoutes] = useState<any[]>([]);
@@ -164,8 +166,15 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <IconSymbol name="map" size={24} color="#007AFF" />
-        <Text style={styles.headerTitle}>AI-Планировщик маршрутов</Text>
+        <View style={styles.headerLeft}>
+          <IconSymbol name="map" size={24} color="#007AFF" />
+          <Text style={styles.headerTitle}>AI-Планировщик маршрутов</Text>
+        </View>
+        {onClose && (
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <IconSymbol name="xmark" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -346,20 +355,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E9ECEF',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginLeft: 8,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8F9FA',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   section: {
     padding: 16,

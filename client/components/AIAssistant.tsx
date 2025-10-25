@@ -6,11 +6,13 @@ import { AIService, ChatMessage, AIRecommendation } from '../services/AIService'
 interface AIAssistantProps {
   onRecommendationPress?: (recommendation: AIRecommendation) => void;
   onRouteCreate?: (routeData: any) => void;
+  onClose?: () => void;
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({
   onRecommendationPress,
-  onRouteCreate
+  onRouteCreate,
+  onClose
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -106,8 +108,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <IconSymbol name="brain.head.profile" size={24} color="#007AFF" />
-        <Text style={styles.headerTitle}>AI-Помощник</Text>
+        <View style={styles.headerLeft}>
+          <IconSymbol name="brain.head.profile" size={24} color="#007AFF" />
+          <Text style={styles.headerTitle}>AI-Помощник</Text>
+        </View>
+        {onClose && (
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <IconSymbol name="xmark" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView 
@@ -187,20 +196,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E9ECEF',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginLeft: 8,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8F9FA',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   messagesContainer: {
     flex: 1,

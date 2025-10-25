@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useRouter } from 'expo-router';
 import { authStore } from '../../stores/authStore';
@@ -29,7 +29,6 @@ const MapsScreen = observer(() => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
-  const [loading, setLoading] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
   const [showUserLocation, setShowUserLocation] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -38,21 +37,14 @@ const MapsScreen = observer(() => {
   // AI состояния
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [showAIRoutePlanner, setShowAIRoutePlanner] = useState(false);
-  const [aiRoutes, setAiRoutes] = useState<any[]>([]);
-  const [selectedAIRoute, setSelectedAIRoute] = useState<any>(null);
 
   useEffect(() => {
     if (!authStore.isAuth) {
       router.replace("/login");
     }
-  }, [authStore.isAuth]);
+  }, [router]);
 
-  useEffect(() => {
-    loadPOIs();
-    requestLocationPermission();
-  }, []);
-
-  const requestLocationPermission = async () => {
+  const requestLocationPermission = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
@@ -67,9 +59,9 @@ const MapsScreen = observer(() => {
     } catch (err) {
       console.error('Ошибка запроса разрешения на геолокацию:', err);
     }
-  };
+  }, []);
 
-  const getUserLocation = async () => {
+  const getUserLocation = useCallback(async () => {
     try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
@@ -84,17 +76,16 @@ const MapsScreen = observer(() => {
       
       // Загружаем POI рядом с пользователем
       await loadNearbyPOIs(userCoords.latitude, userCoords.longitude);
-    } catch (error) {
+    } catch {
       console.log('Геолокация недоступна, используем координаты по умолчанию (Ростов-на-Дону)');
       // Не критично - просто не определяем местоположение
       setUserLocation({ latitude: 47.2357, longitude: 39.7125 });
       await loadPOIs();
     }
-  };
+  }, []);
 
-  const loadNearbyPOIs = async (latitude: number, longitude: number) => {
+  const loadNearbyPOIs = useCallback(async (latitude: number, longitude: number) => {
     try {
-      setLoading(true);
       const data = await MapService.getPOIsInRadius(latitude, longitude, 10000); // 10 км радиус
       
       // Если ближайших POI нет, загружаем все
@@ -111,13 +102,11 @@ const MapsScreen = observer(() => {
       // Если не удалось загрузить ближайшие, загружаем все
       await loadPOIs();
     } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
-  const loadPOIs = async () => {
+  const loadPOIs = useCallback(async () => {
     try {
-      setLoading(true);
       
       // Определяем координаты для загрузки
       const loadLat = userLocation?.latitude || 47.2357; // Ростов-на-Дону по умолчанию
@@ -148,19 +137,17 @@ const MapsScreen = observer(() => {
           longitudeDelta: 0.0421,
         });
       }
-    } catch (error) {
-      console.error('Ошибка загрузки POI:', error);
+    } catch (err) {
+      console.error('Ошибка загрузки POI:', err);
       Alert.alert('Ошибка', 'Не удалось загрузить точки интереса');
       setPois([]);
     } finally {
-      setLoading(false);
     }
-  };
+  }, [userLocation]);
 
   const handleCategoryFilter = async (category: POICategory | null) => {
     setSelectedCategory(category);
     try {
-      setLoading(true);
       const data = category 
         ? await MapService.getPOIsByCategory(category)
         : await MapService.getPOIs();
@@ -172,19 +159,9 @@ const MapsScreen = observer(() => {
       console.error('Ошибка фильтрации POI:', error);
       Alert.alert('Ошибка', 'Не удалось отфильтровать точки интереса');
     } finally {
-      setLoading(false);
     }
   };
 
-  const handlePOISelect = (poi: POI) => {
-    setSelectedPOI(poi);
-    setMapRegion({
-      latitude: poi.latitude,
-      longitude: poi.longitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
-  };
 
   const handlePOIToggle = (poi: POI) => {
     setSelectedPOIs(prev => {
@@ -212,19 +189,22 @@ const MapsScreen = observer(() => {
 
   const handleAIRouteCreated = (route: any) => {
     console.log('AI маршрут создан:', route);
-    setAiRoutes(prev => [...prev, route]);
-    setSelectedAIRoute(route);
+    // Здесь можно отобразить маршрут на карте
   };
 
   const handleAIRouteSelect = (route: any) => {
     console.log('AI маршрут выбран:', route);
-    setSelectedAIRoute(route);
     // Здесь можно отобразить маршрут на карте
   };
 
   const handleRouteGenerated = (route: Route | null) => {
     setCurrentRoute(route);
   };
+
+  useEffect(() => {
+    loadPOIs();
+    requestLocationPermission();
+  }, [loadPOIs, requestLocationPermission]);
 
   const handleClearRoute = () => {
     setCurrentRoute(null);
@@ -477,6 +457,7 @@ const MapsScreen = observer(() => {
           <AIAssistant
             onRecommendationPress={handleAIRecommendation}
             onRouteCreate={handleAIRouteCreated}
+            onClose={() => setShowAIAssistant(false)}
           />
         </View>
       )}
@@ -487,6 +468,7 @@ const MapsScreen = observer(() => {
           <AIRoutePlanner
             onRouteCreated={handleAIRouteCreated}
             onRouteSelect={handleAIRouteSelect}
+            onClose={() => setShowAIRoutePlanner(false)}
           />
         </View>
       )}
@@ -718,6 +700,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     zIndex: 1000,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
