@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  rostov-backend:
+  rostov-ai-travel-backend:
     build:
       context: ./back
       dockerfile: Dockerfile
