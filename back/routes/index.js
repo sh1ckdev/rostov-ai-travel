@@ -70,6 +70,9 @@ router.get('/test', (req, res) => {
 
 // ВАЖНО: Специфичные роуты должны быть ПЕРЕД параметризованными!
 
+// Автоматически загрузить POI из 2GIS (должен быть первым!)
+router.get('/pois/auto-load', poiController.autoLoadPOIs)
+
 // Получить статистику POI
 router.get('/pois/stats', poiController.getPOIStats)
 

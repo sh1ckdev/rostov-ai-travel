@@ -415,6 +415,124 @@ class MapService {
       throw error;
     }
   }
+
+  // Автоматически загрузить POI из 2GIS для заданной области
+  async loadPOIsFrom2GIS(latitude, longitude, radius = 5000) {
+    try {
+      console.log(`Загрузка POI из 2GIS для координат: ${latitude}, ${longitude}, радиус: ${radius}m`);
+      
+      // Используем 2GIS Catalog API для поиска по координатам
+      const params = {
+        key: this.twogisApiKey,
+        point: `${longitude},${latitude}`,
+        radius: Math.min(radius, 5000), // Максимальный радиус для 2GIS
+        page: 1,
+        page_size: 50, // Максимум результатов за запрос
+        type: 'branch,adm_div.city',
+        fields: 'items.point,items.name,items.rubrics,items.address_name,items.rating,items.photos,items.description'
+      };
+
+      const response = await axios.get(`${this.baseUrl}/items/search`, { params });
+      
+      if (!response.data || !response.data.result || !response.data.result.items) {
+        console.log('Нет результатов от 2GIS API');
+        return [];
+      }
+
+      const items = response.data.result.items;
+      console.log(`Получено ${items.length} объектов от 2GIS API`);
+
+      const poisToSave = [];
+      
+      for (const item of items) {
+        try {
+          // Проверяем, есть ли уже такой POI (по координатам)
+          const existingPOI = await POI.findOne({
+            location: {
+              $near: {
+                $geometry: {
+                  type: 'Point',
+                  coordinates: [item.point.lon, item.point.lat]
+                },
+                $maxDistance: 100 // 100 метров
+              }
+            }
+          });
+
+          if (existingPOI) {
+            console.log(`POI ${item.name} уже существует, пропускаем`);
+            continue;
+          }
+
+          // Определяем категорию
+          let category = 'OTHER';
+          if (item.rubrics && item.rubrics.length > 0) {
+            const mappedCategory = this.map2GISTypeToCategory(item.rubrics.map(r => r.name));
+            // Если возвращается объект enum, берем значение
+            category = typeof mappedCategory === 'string' ? mappedCategory : mappedCategory?.value || 'OTHER';
+          }
+
+          // Создаем объект POI
+          // Для автозагрузки создаем фиктивного пользователя (или делаем createdBy необязательным)
+          const poiData = {
+            name: item.name,
+            description: item.description?.text || item.address_name || '',
+            location: {
+              type: 'Point',
+              coordinates: [item.point.lon, item.point.lat]
+            },
+            category: category,
+            address: item.address_name || '',
+            rating: item.rating || 0,
+            imageUrl: item.photos && item.photos.length > 0 ? item.photos[0].url : null,
+            isActive: true,
+            tags: item.rubrics ? item.rubrics.map(r => r.name) : [],
+            twogisPlaceId: item.id?.toString(),
+            isTwoGISPlace: true
+            // createdBy будет добавлен позже или сделаем его необязательным
+          };
+
+          poisToSave.push(poiData);
+        } catch (error) {
+          console.error(`Ошибка обработки POI ${item.name}:`, error.message);
+        }
+      }
+
+      // Сохраняем POI в базу данных
+      if (poisToSave.length > 0) {
+        try {
+          const savedPOIs = await POI.insertMany(poisToSave);
+          console.log(`Сохранено ${savedPOIs.length} POI в базу данных`);
+          return savedPOIs;
+        } catch (insertError) {
+          console.error('Ошибка сохранения POI в базу данных:', insertError.message);
+          console.error('Детали ошибки:', insertError);
+          throw insertError;
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Ошибка загрузки POI из 2GIS:', error.message);
+      console.error('Stack trace:', error.stack);
+      throw error;
+    }
+  }
+
+  // Проверить и загрузить POI если база пустая
+  async ensurePOIsLoaded(latitude, longitude) {
+    try {
+      const count = await POI.countDocuments({ isActive: true });
+      console.log(`Текущее количество POI в базе: ${count}`);
+
+      if (count === 0) {
+        console.log('База POI пуста, загружаем из 2GIS...');
+        await this.loadPOIsFrom2GIS(latitude, longitude, 10000); // Радиус 10км
+      }
+    } catch (error) {
+      console.error('Ошибка проверки загрузки POI:', error.message);
+    }
+  }
 }
 
 module.exports = new MapService();

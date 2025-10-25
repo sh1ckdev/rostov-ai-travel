@@ -2,6 +2,19 @@ import { POI, POICategory, MapRegion } from '../types/poi';
 import { $api } from '@/constants/http';
 
 export class MapService {
+  // Автоматически загрузить POI из 2GIS
+  static async autoLoadPOIs(latitude: number, longitude: number, radius = 10000): Promise<{ success: boolean; count: number; message: string }> {
+    try {
+      const response = await $api.get('/pois/auto-load', {
+        params: { latitude, longitude, radius }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка автоматической загрузки POI:', error);
+      throw error;
+    }
+  }
+
   // Получить все POI
   static async getPOIs(params?: {
     page?: number;
@@ -13,10 +26,23 @@ export class MapService {
     radius?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    autoLoad?: boolean; // Автоматически загрузить если база пуста
   }): Promise<POI[]> {
     try {
       const response = await $api.get('/pois', { params });
-      return this.transformPOIs(response.data.data);
+      const pois = this.transformPOIs(response.data.data);
+      
+      // Если POI нет и включена автозагрузка, загружаем из 2GIS
+      if (params?.autoLoad && pois.length === 0 && params.latitude && params.longitude) {
+        console.log('База POI пуста, загружаем из 2GIS...');
+        await this.autoLoadPOIs(params.latitude, params.longitude, params.radius);
+        
+        // Повторно загружаем POI
+        const retryResponse = await $api.get('/pois', { params });
+        return this.transformPOIs(retryResponse.data.data);
+      }
+      
+      return pois;
     } catch (error) {
       console.error('Ошибка загрузки POI:', error);
       throw error;

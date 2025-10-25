@@ -113,7 +113,7 @@ const POISchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false  // Сделано необязательным для автозагрузки из 2GIS
   },
   tags: [{
     type: String,

@@ -1,4 +1,5 @@
 const POI = require('../models/poi-model');
+const mapService = require('../services/map-service');
 const { validationResult } = require('express-validator');
 const ApiError = require('../exceptions/api-error');
 
@@ -378,6 +379,43 @@ class POIController {
           totalPOIs,
           byCategory: stats
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Автоматически загрузить POI из 2GIS
+  async autoLoadPOIs(req, res, next) {
+    try {
+      const { latitude, longitude, radius = 10000 } = req.query;
+
+      if (!latitude || !longitude) {
+        throw ApiError.BadRequest('Координаты latitude и longitude обязательны');
+      }
+
+      // Сначала проверяем, есть ли уже POI в базе
+      const count = await POI.countDocuments({ isActive: true });
+
+      if (count > 0) {
+        return res.json({
+          success: true,
+          message: 'POI уже загружены в базу данных',
+          existingCount: count
+        });
+      }
+
+      // Загружаем POI из 2GIS
+      const loadedPOIs = await mapService.loadPOIsFrom2GIS(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        parseInt(radius)
+      );
+
+      res.json({
+        success: true,
+        message: `Загружено ${loadedPOIs.length} POI из 2GIS`,
+        count: loadedPOIs.length
       });
     } catch (error) {
       next(error);

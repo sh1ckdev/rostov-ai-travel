@@ -6,7 +6,7 @@ import { authStore } from '../../stores/authStore';
 import * as Location from 'expo-location';
 
 import MapViewComponent from '@/components/MapView';
-import POIMarker from '@/components/POIMarker';
+import MapPOIMarker from '@/components/MapPOIMarker';
 import RouteManager from '@/components/RouteManager';
 import { MapService } from '@/services/MapService';
 import { POI, POICategory, MapRegion } from '@/types/poi';
@@ -107,15 +107,28 @@ const MapsScreen = observer(() => {
   const loadPOIs = async () => {
     try {
       setLoading(true);
-      const data = await MapService.getPOIs();
+      
+      // Определяем координаты для загрузки
+      const loadLat = userLocation?.latitude || 47.2357; // Ростов-на-Дону по умолчанию
+      const loadLon = userLocation?.longitude || 39.7125;
+      
+      // Загружаем POI с автозагрузкой из 2GIS
+      const data = await MapService.getPOIs({
+        autoLoad: true,
+        latitude: loadLat,
+        longitude: loadLon,
+        radius: 10000
+      });
+      
       setPois(data || []);
       
       // Устанавливаем регион карты для отображения всех POI
       if (data && data.length > 0) {
         const recommendedRegion = MapService.getRecommendedRegion(data);
         setMapRegion(recommendedRegion);
+        console.log(`Загружено ${data.length} POI`);
       } else {
-        console.log('База POI пустая. Используйте демо-режим или добавьте POI.');
+        console.log('POI не найдены');
         // Центрируем на Ростове-на-Дону
         setMapRegion({
           latitude: 47.2357,
@@ -341,7 +354,7 @@ const MapsScreen = observer(() => {
           {pois.map((poi) => {
             const isSelected = selectedPOIs.some(p => p.id === poi.id);
             return (
-              <POIMarker
+              <MapPOIMarker
                 key={poi.id}
                 poi={poi}
                 onPress={handlePOIToggle}
@@ -421,8 +434,6 @@ const getCategoryDisplayName = (category: POICategory): string => {
   };
   return categoryNames[category];
 };
-
-export default MapsScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -612,3 +623,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+export default MapsScreen;
