@@ -6,6 +6,11 @@ class AIController {
     this.openRouterApiKey = process.env.OPENROUTER_API_KEY;
     this.openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
     this.model = 'microsoft/phi-3-mini-128k-instruct:free';
+    
+    // Привязываем методы к контексту
+    this.getAIResponse = this.getAIResponse.bind(this);
+    this.generateAIResponse = this.generateAIResponse.bind(this);
+    this.generateSuggestionsFromResponse = this.generateSuggestionsFromResponse.bind(this);
   }
   // Получить персональные рекомендации
   async getPersonalRecommendations(req, res, next) {
@@ -189,7 +194,7 @@ class AIController {
       systemPrompt += 'Отвечай на русском языке, будь полезным и дружелюбным.';
 
       // Используем OpenRouter для получения ответа от AI
-      const aiResponse = await this.getAIResponse(message, context, systemPrompt);
+      const aiResponse = await this.getAIResponse.call(this, message, context, systemPrompt);
 
       res.json({
         success: true,
@@ -198,7 +203,7 @@ class AIController {
     } catch (error) {
       console.error('Ошибка получения ответа от AI:', error);
       // Fallback на локальную генерацию
-      const fallbackResponse = this.generateAIResponse(req.body.message, req.body.context);
+      const fallbackResponse = this.generateAIResponse.call(this, req.body.message, req.body.context);
       res.json({
         success: true,
         data: fallbackResponse
@@ -291,7 +296,7 @@ class AIController {
       // Если ошибка 401 (неверный ключ) или другие ошибки API, используем fallback
       if (error.response?.status === 401) {
         console.log('OpenRouter API ключ недействителен, используем fallback');
-        return this.generateAIResponse(message, context);
+        return this.generateAIResponse.call(this, message, context);
       }
       
       throw error;
