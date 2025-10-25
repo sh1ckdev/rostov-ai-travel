@@ -160,8 +160,24 @@ class AIController {
       }
 
       // Определяем тип запроса для более точного ответа
-      const isMapRelated = this.isMapRelatedQuery(message);
-      const isTravelRelated = this.isTravelRelatedQuery(message);
+      const mapKeywords = [
+        'карта', 'карты', 'навигация', 'маршрут', 'дорога', 'путь',
+        'координаты', 'адрес', 'местоположение', 'где находится',
+        'как добраться', 'проехать', 'доехать'
+      ];
+      const travelKeywords = [
+        'путешествие', 'туризм', 'отдых', 'отпуск', 'поездка',
+        'достопримечательность', 'музей', 'театр', 'парк',
+        'ресторан', 'кафе', 'отель', 'гостиница', 'размещение',
+        'что посмотреть', 'куда пойти', 'где поесть', 'где остановиться'
+      ];
+      
+      const isMapRelated = mapKeywords.some(keyword => 
+        message.toLowerCase().includes(keyword.toLowerCase())
+      );
+      const isTravelRelated = travelKeywords.some(keyword => 
+        message.toLowerCase().includes(keyword.toLowerCase())
+      );
       
       let systemPrompt = 'Ты - универсальный AI-помощник. Отвечай дружелюбно и полезно на любые вопросы. ';
       
@@ -173,8 +189,7 @@ class AIController {
       systemPrompt += 'Отвечай на русском языке, будь полезным и дружелюбным.';
 
       // Используем OpenRouter для получения ответа от AI
-      const aiController = new AIController();
-      const aiResponse = await aiController.getAIResponse(message, context, systemPrompt);
+      const aiResponse = await this.getAIResponse(message, context, systemPrompt);
 
       res.json({
         success: true,
@@ -183,8 +198,7 @@ class AIController {
     } catch (error) {
       console.error('Ошибка получения ответа от AI:', error);
       // Fallback на локальную генерацию
-      const aiController = new AIController();
-      const fallbackResponse = aiController.generateAIResponse(req.body.message, req.body.context);
+      const fallbackResponse = this.generateAIResponse(req.body.message, req.body.context);
       res.json({
         success: true,
         data: fallbackResponse
