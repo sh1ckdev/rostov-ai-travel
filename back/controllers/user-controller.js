@@ -7,16 +7,32 @@ const UserModel = require("../models/user-modal");
 class UserController {
     async registration(req, res, next) {
         try {
+            console.log('Registration request received:', req.body);
+            
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                next(ApiError.BadRequest("Ошибка валидации", errors.array()));
+                console.log('Validation errors:', errors.array());
+                return next(ApiError.BadRequest("Ошибка валидации", errors.array()));
             }
+            
             const { username, email, password } = req.body;
+            
+            // Дополнительная валидация
+            if (!username || !email || !password) {
+                console.log('Missing required fields:', { username, email, password: !!password });
+                return res.status(400).json({
+                    error: 'Missing required fields',
+                    message: 'Username, email, and password are required'
+                });
+            }
+            
+            console.log('Calling UserService.registration...');
             const userData = await UserService.registration(
                 username,
                 email,
                 password
             );
+            console.log('Registration successful:', { username: userData.user.username, email: userData.user.email });
 
             res.cookie("refreshToken", userData.refreshToken, {
                 maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -25,12 +41,22 @@ class UserController {
 
             return res.json(userData);
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }
     async login(req, res, next) {
         try {
             const { username, password } = req.body;
+            
+            // Валидация входных данных
+            if (!username || !password) {
+                return res.status(400).json({
+                    error: 'Missing required fields',
+                    message: 'Username and password are required'
+                });
+            }
+            
             const userData = await UserService.login(username, password);
             res.cookie("refreshToken", userData.refreshToken, {
                 maxAge: 30 * 24 * 60 * 60 * 1000,
@@ -39,6 +65,7 @@ class UserController {
 
             return res.json(userData);
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }
@@ -49,6 +76,7 @@ class UserController {
             res.clearCookie("refreshToken");
             return res.json(token);
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }
@@ -73,6 +101,7 @@ class UserController {
             const users = await UserModel.find({});
             res.json(users);
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }
@@ -92,6 +121,7 @@ class UserController {
                 user: updatedUser,
             });
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }
@@ -118,6 +148,7 @@ class UserController {
     
             return res.json(user);
         } catch (error) {
+            console.error('Registration error:', error);
             next(error);
         }
     }

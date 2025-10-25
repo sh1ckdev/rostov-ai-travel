@@ -3,8 +3,15 @@ const tokenModel = require('../models/token-model');
 
 class TokenService {
     generateTokens(payload) {
-        const accessToken = jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {expiresIn: '15h'})
-        const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {expiresIn: '30h'})
+        const accessSecret = process.env.JWT_ACCESS_SECRET || 'default-access-secret-key';
+        const refreshSecret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key';
+        
+        if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
+            console.warn('JWT secrets not set, using default values. This is not secure for production!');
+        }
+        
+        const accessToken = jwt.sign(payload, accessSecret, {expiresIn: '15h'})
+        const refreshToken = jwt.sign(payload, refreshSecret, {expiresIn: '30h'})
         return {
             accessToken,
             refreshToken
@@ -13,7 +20,8 @@ class TokenService {
 
     validateAccessToken(token) {
         try {
-            const userData = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+            const accessSecret = process.env.JWT_ACCESS_SECRET || 'default-access-secret-key';
+            const userData = jwt.verify(token, accessSecret);
             return userData;
         } catch (e) {
             console.error('Ошибка валидации accessToken: ', e);
@@ -23,7 +31,8 @@ class TokenService {
 
     async validateRefreshToken(token) {
         try {
-            const userData = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+            const refreshSecret = process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-key';
+            const userData = jwt.verify(token, refreshSecret);
             return userData;
         } catch (e) {
             console.error('Ошибка валидации refreshToken: ', e);

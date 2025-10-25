@@ -18,8 +18,32 @@ app.use(cors({
   optionsSuccessStatus: 204,
 }));
 
-app.use(express.json());
+// Улучшенная обработка JSON с лучшими сообщениями об ошибках
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      console.error('Invalid JSON received:', buf.toString());
+      throw new Error('Invalid JSON format');
+    }
+  }
+}));
 app.use(cookieParser());
+
+// Middleware для обработки ошибок JSON
+app.use((error, req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    console.error('JSON Parse Error:', error.message);
+    return res.status(400).json({
+      error: 'Invalid JSON format',
+      message: 'Please check your JSON syntax. Make sure all strings are properly quoted and all colons are present.',
+      details: error.message
+    });
+  }
+  next();
+});
 
 // Добавляем логирование всех запросов
 app.use((req, res, next) => {
