@@ -17,7 +17,7 @@ services:
       JWT_REFRESH_SECRET: your-super-secret-jwt-refresh-key-2024-CHANGE-ME-rostov-ai-travel
       TWOGIS_API_KEY: 2aaa4ed7-7580-4e80-a139-f60e4be538c7
       OPENAI_API_KEY: ""
-      OPENROUTER_API_KEY: "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"
+      OPENROUTER_API_KEY: "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"
       ROSREESTR_API_KEY: ""
       CORS_ORIGIN: "*"
       USE_EXPO_LOCATION: "true"
