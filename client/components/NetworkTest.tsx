@@ -8,13 +8,13 @@ const NetworkTest = () => {
   const testConnection = async () => {
     setIsLoading(true);
     try {
-      console.log('Testing connection...');
+      console.log('Testing connection to 138.124.14.197:5000...');
       const response = await $api.get('/test');
       console.log('Connection successful:', response.data);
-      Alert.alert('Успех!', `Сервер отвечает: ${response.data.message}`);
+      Alert.alert('Успех!', `Сервер 138.124.14.197:5000 отвечает: ${response.data.message}`);
     } catch (error) {
       console.error('Connection failed:', error);
-      Alert.alert('Ошибка!', `Не удалось подключиться: ${error.message}`);
+      Alert.alert('Ошибка!', `Не удалось подключиться к 138.124.14.197:5000: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -23,7 +23,7 @@ const NetworkTest = () => {
   return (
     <View style={{ padding: 20 }}>
       <Text style={{ fontSize: 18, marginBottom: 20 }}>
-        Тест подключения к серверу
+        Тест подключения к серверу 138.124.14.197:5000
       </Text>
       <TouchableOpacity
         onPress={testConnection}

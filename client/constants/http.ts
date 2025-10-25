@@ -2,21 +2,14 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Более надежное определение URL
+// Конфигурация для работы с сервером 138.124.14.197:5000
 const getBaseURL = () => {
   if (__DEV__) {
-    if (Platform.OS === 'android') {
-      // Для Android эмулятора
-      return 'http://10.0.2.2:5000/api';
-    } else if (Platform.OS === 'ios') {
-      // Для iOS симулятора
-      return 'http://localhost:5000/api';
-    } else {
-      // Для физических устройств - IP адрес вашего компьютера
-      return 'http://192.168.31.250:5000/api';
-    }
+    // В режиме разработки используем ваш сервер
+    return 'http://138.124.14.197:5000/api';
   }
-  return 'https://your-production-url.com/api';
+  // Для продакшена
+  return 'http://138.124.14.197:5000/api';
 };
 
 export const API_URL = getBaseURL();

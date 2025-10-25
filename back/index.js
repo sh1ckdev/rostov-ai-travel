@@ -9,33 +9,14 @@ const errorMiddleware = require('./middlewares/error-middleware')
 const PORT = process.env.PORT || 5000;
 const app = express();
 
-// В режиме разработки разрешаем все источники
-if (process.env.NODE_ENV !== 'production') {
-  app.use(cors({
-    origin: true, // Разрешаем все источники в режиме разработки
-    credentials: true, 
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', 
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    optionsSuccessStatus: 204,
-  }));
-} else {
-  app.use(cors({
-    origin: [
-      'http://localhost:5175', 
-      'http://localhost:8081', 
-      'http://localhost:19006',
-      'http://10.0.2.2:19006', // Android эмулятор
-      'http://localhost:3000',
-      'exp://localhost:19000', // Expo dev
-      'http://192.168.31.250:19006', // Физическое устройство
-      'exp://192.168.31.250:19000', // Expo dev на физическом устройстве
-    ], 
-    credentials: true, 
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', 
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    optionsSuccessStatus: 204,
-  }));
-}
+// Разрешаем CORS для всех источников
+app.use(cors({
+  origin: true, // Разрешаем все источники
+  credentials: true, 
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'], 
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  optionsSuccessStatus: 204,
+}));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -43,9 +24,22 @@ app.use(cookieParser());
 // Добавляем логирование всех запросов
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Origin:', req.headers.origin);
+  console.log('User-Agent:', req.headers['user-agent']);
   console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', req.body);
+  }
   next();
+});
+
+// Обработка OPTIONS запросов для CORS
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept,Origin,X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
 });
 
 app.use('/api', router)
