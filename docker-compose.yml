@@ -1,45 +1,36 @@
 version: '3.8'
 
 services:
-  # Backend API
   backend:
     build:
       context: ./back
       dockerfile: Dockerfile
+    container_name: rostov-backend
     ports:
       - "5000:5000"
     environment:
-      - NODE_ENV=production
-      - PORT=5000
-      - DB_URL=mongodb://mongo:27017/rostov-ai-travel
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-your-super-secret-jwt-access-key-2024}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-jwt-refresh-key-2024}
-      - TWOGIS_API_KEY=${TWOGIS_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CORS_ORIGIN=*
+      NODE_ENV: production
+      PORT: 5000
+      DB_URL: mongodb://mongo:27017/rostov-ai-travel
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-your-super-secret-jwt-access-key-2024}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-your-super-secret-jwt-refresh-key-2024}
+      TWOGIS_API_KEY: ${TWOGIS_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CORS_ORIGIN: "*"
     depends_on:
       - mongo
     restart: unless-stopped
-    networks:
-      - app-network
 
-  # MongoDB Database
   mongo:
     image: mongo:7.0
+    container_name: rostov-mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
-    networks:
-      - app-network
     environment:
-      - MONGO_INITDB_DATABASE=rostov-ai-travel
+      MONGO_INITDB_DATABASE: rostov-ai-travel
 
 volumes:
   mongo_data:
-    driver: local
-
-networks:
-  app-network:
-    driver: bridge
