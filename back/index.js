@@ -73,10 +73,7 @@ const start = async () => {
   try {
     const dbUrl = process.env.DB_URL || 'mongodb://mongo:27017/rostov-ai-travel';
     console.log('Connecting to database:', dbUrl);
-    await mongoose.connect(dbUrl, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(dbUrl);
     
 
     app.listen(PORT, '0.0.0.0', () => {
