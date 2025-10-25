@@ -273,6 +273,13 @@ class AIController {
       }
     } catch (error) {
       console.error('Ошибка запроса к OpenRouter:', error.response?.data || error.message);
+      
+      // Если ошибка 401 (неверный ключ) или другие ошибки API, используем fallback
+      if (error.response?.status === 401) {
+        console.log('OpenRouter API ключ недействителен, используем fallback');
+        return this.generateAIResponse(message, context);
+      }
+      
       throw error;
     }
   }
