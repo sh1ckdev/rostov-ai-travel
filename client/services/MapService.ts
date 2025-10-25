@@ -384,9 +384,9 @@ export class MapService {
     }
   }
 
-  // ==================== Работа с Google Maps API ====================
+  // ==================== Работа с OpenStreetMap API ====================
 
-  // Получить направления между точками
+  // Получить направления между точками через OpenRouteService или OSRM
   static async getDirections(params: {
     originLat: number;
     originLng: number;
@@ -404,7 +404,7 @@ export class MapService {
     }
   }
 
-  // Геокодирование (адрес -> координаты)
+  // Геокодирование через Nominatim (OpenStreetMap)
   static async geocode(address: string): Promise<any> {
     try {
       const response = await $api.get('/map/geocode', {
@@ -417,7 +417,7 @@ export class MapService {
     }
   }
 
-  // Обратное геокодирование (координаты -> адрес)
+  // Обратное геокодирование через Nominatim
   static async reverseGeocode(latitude: number, longitude: number): Promise<any> {
     try {
       const response = await $api.get('/map/reverse-geocode', {
@@ -430,7 +430,7 @@ export class MapService {
     }
   }
 
-  // Поиск мест поблизости через Google Places
+  // Поиск мест поблизости через Overpass API
   static async findNearbyPlaces(params: {
     latitude: number;
     longitude: number;
@@ -446,10 +446,10 @@ export class MapService {
     }
   }
 
-  // Получить детали места по place_id
-  static async getPlaceDetails(placeId: string, fields?: string[]): Promise<any> {
+  // Получить детали места по OSM ID
+  static async getPlaceDetails(osmId: string, fields?: string[]): Promise<any> {
     try {
-      const response = await $api.get(`/map/place/${placeId}`, {
+      const response = await $api.get(`/map/place/${osmId}`, {
         params: { fields: fields?.join(',') }
       });
       return response.data.data;
@@ -459,7 +459,7 @@ export class MapService {
     }
   }
 
-  // Получить рекомендуемые POI от Google Places
+  // Получить рекомендуемые POI от OpenStreetMap
   static async getRecommendedPOIs(params: {
     latitude: number;
     longitude: number;
@@ -475,8 +475,8 @@ export class MapService {
     }
   }
 
-  // Синхронизировать POI с Google Places
-  static async syncPOIWithGooglePlaces(poiId: string): Promise<POI> {
+  // Синхронизировать POI с OpenStreetMap
+  static async syncPOIWithOSM(poiId: string): Promise<POI> {
     try {
       const response = await $api.post(`/map/sync-poi/${poiId}`);
       return this.transformPOI(response.data.data);
