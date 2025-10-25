@@ -5,7 +5,7 @@ class AIController {
   constructor() {
     this.openRouterApiKey = process.env.OPENROUTER_API_KEY;
     this.openRouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
-    this.model = 'tngtech/deepseek-r1t2-chimera:free';
+    this.model = 'microsoft/phi-3-mini-128k-instruct:free';
   }
   // Получить персональные рекомендации
   async getPersonalRecommendations(req, res, next) {
@@ -164,7 +164,7 @@ class AIController {
       console.error('Ошибка получения ответа от AI:', error);
       // Fallback на локальную генерацию
       const aiController = new AIController();
-      const fallbackResponse = aiController.generateAIResponse(message, context);
+      const fallbackResponse = aiController.generateAIResponse(req.body.message, req.body.context);
       res.json({
         success: true,
         data: fallbackResponse
@@ -213,17 +213,21 @@ class AIController {
         }
       });
 
-      const aiMessage = response.data.choices[0].message.content;
+      if (response.data && response.data.choices && response.data.choices[0]) {
+        const aiMessage = response.data.choices[0].message.content;
 
-      return {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: aiMessage,
-        timestamp: new Date(),
-        suggestions: this.generateSuggestionsFromResponse(aiMessage)
-      };
+        return {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: aiMessage,
+          timestamp: new Date(),
+          suggestions: this.generateSuggestionsFromResponse(aiMessage)
+        };
+      } else {
+        throw new Error('Неожиданный формат ответа от OpenRouter');
+      }
     } catch (error) {
-      console.error('Ошибка запроса к OpenRouter:', error);
+      console.error('Ошибка запроса к OpenRouter:', error.response?.data || error.message);
       throw error;
     }
   }
