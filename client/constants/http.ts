@@ -2,22 +2,25 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Конфигурация для работы с сервером 138.124.14.197:5000
+// Конфигурация для работы с сервером
+// ВАЖНО: После деплоя на Dokploy замените на ваш IP или домен!
+const BACKEND_URL = 'http://138.124.14.197:5000/api'; // Замените на IP вашего Dokploy сервера
+
 const getBaseURL = () => {
   if (__DEV__) {
-    // В режиме разработки используем ваш сервер
-    return 'http://138.124.14.197:5000/api';
+    // В режиме разработки
+    return BACKEND_URL;
   }
   // Для продакшена
-  return 'http://138.124.14.197:5000/api';
+  return BACKEND_URL;
 };
 
 export const API_URL = getBaseURL();
 
 const $api = axios.create({
-  withCredentials: true,  
+  withCredentials: false, // Для React Native лучше отключить
   baseURL: API_URL,
-  timeout: 10000, // Добавляем таймаут
+  timeout: 15000, // Увеличен таймаут
 });
 
 $api.interceptors.request.use(async (config) => {
