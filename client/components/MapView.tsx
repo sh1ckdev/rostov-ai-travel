@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Alert, Platform, ScrollView, TouchableOpacity, Text } from 'react-native';
 import * as Location from 'expo-location';
 import { Route } from '../services/DirectionsService';
 import { DirectionsService } from '../services/DirectionsService';
@@ -77,9 +77,9 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
           <View style={styles.mapInfo}>
             <View style={styles.mapTypeIndicator}>
               <View style={[styles.mapTypeDot, styles[mapType]]} />
-              <View style={styles.mapTypeLabel}>
+              <Text style={styles.mapTypeLabel}>
                 {mapType === 'standard' ? 'Стандартная' : mapType === 'satellite' ? 'Спутниковая' : 'Гибридная'}
-              </View>
+              </Text>
             </View>
           </View>
         </View>
@@ -125,15 +125,15 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
             <View style={styles.coordinate}>
               <IconSymbol name="map" size={12} color="#666" />
               <View style={styles.coordinateText}>
-                <View style={styles.coordinateLabel}>Широта</View>
-                <View style={styles.coordinateValue}>{region.latitude.toFixed(4)}°</View>
+                <Text style={styles.coordinateLabel}>Широта</Text>
+                <Text style={styles.coordinateValue}>{region.latitude.toFixed(4)}°</Text>
               </View>
             </View>
             <View style={styles.coordinate}>
               <IconSymbol name="location" size={12} color="#666" />
               <View style={styles.coordinateText}>
-                <View style={styles.coordinateLabel}>Долгота</View>
-                <View style={styles.coordinateValue}>{region.longitude.toFixed(4)}°</View>
+                <Text style={styles.coordinateLabel}>Долгота</Text>
+                <Text style={styles.coordinateValue}>{region.longitude.toFixed(4)}°</Text>
               </View>
             </View>
           </View>
@@ -143,10 +143,10 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
             <View style={styles.routeInfo}>
               <IconSymbol name="figure.walk" size={16} color="#007AFF" />
               <View style={styles.routeInfoText}>
-                <View style={styles.routeInfoTitle}>Маршрут построен</View>
-                <View style={styles.routeInfoDistance}>
+                <Text style={styles.routeInfoTitle}>Маршрут построен</Text>
+                <Text style={styles.routeInfoDistance}>
                   {route.distance} • {route.duration}
-                </View>
+                </Text>
               </View>
             </View>
           )}

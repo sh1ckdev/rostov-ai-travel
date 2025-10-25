@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.rostov.aitravel",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Это приложение использует ваше местоположение для отображения ближайших достопримечательностей и построения маршрутов.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Это приложение использует ваше местоположение для отображения ближайших достопримечательностей и построения маршрутов."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Это приложение использует ваше местоположение для отображения ближайших достопримечательностей и построения маршрутов.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -28,7 +29,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -61,6 +64,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "27600123-c4c7-4f38-ae53-674c18a726c4"
+      }
     }
   }
 }

@@ -25,9 +25,10 @@ const POISchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true,
+    required: false,  // Сделано необязательным для автозагрузки из 2GIS
     trim: true,
-    maxlength: 1000
+    maxlength: 1000,
+    default: ''  // Значение по умолчанию
   },
   location: {
     type: {

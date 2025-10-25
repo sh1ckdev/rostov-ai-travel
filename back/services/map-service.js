@@ -473,23 +473,25 @@ class MapService {
           }
 
           // Создаем объект POI
-          // Для автозагрузки создаем фиктивного пользователя (или делаем createdBy необязательным)
+          // Проверяем обязательные поля
+          if (!item.name || !item.point) {
+            console.log(`Пропускаем POI: нет названия или координат`);
+            continue;
+          }
+
           const poiData = {
-            name: item.name,
-            description: item.description?.text || item.address_name || '',
+            name: item.name.substring(0, 200), // Ограничиваем длину
+            description: (item.description?.text || item.address_name || '').substring(0, 1000),
             location: {
               type: 'Point',
               coordinates: [item.point.lon, item.point.lat]
             },
             category: category,
-            address: item.address_name || '',
+            address: (item.address_name || '').substring(0, 500),
             rating: item.rating || 0,
-            imageUrl: item.photos && item.photos.length > 0 ? item.photos[0].url : null,
+            imageUrl: (item.photos && item.photos.length > 0 && item.photos[0].url) ? item.photos[0].url : null,
             isActive: true,
-            tags: item.rubrics ? item.rubrics.map(r => r.name) : [],
-            twogisPlaceId: item.id?.toString(),
-            isTwoGISPlace: true
-            // createdBy будет добавлен позже или сделаем его необязательным
+            tags: item.rubrics ? item.rubrics.map(r => r.name).slice(0, 10) : [] // Максимум 10 тегов
           };
 
           poisToSave.push(poiData);

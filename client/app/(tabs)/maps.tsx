@@ -77,7 +77,10 @@ const MapsScreen = observer(() => {
       // Загружаем POI рядом с пользователем
       await loadNearbyPOIs(userCoords.latitude, userCoords.longitude);
     } catch (error) {
-      console.error('Ошибка получения местоположения:', error);
+      console.log('Геолокация недоступна, используем координаты по умолчанию (Ростов-на-Дону)');
+      // Не критично - просто не определяем местоположение
+      setUserLocation({ latitude: 47.2357, longitude: 39.7125 });
+      await loadPOIs();
     }
   };
 
