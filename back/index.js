@@ -71,6 +71,26 @@ app.use(errorMiddleware)
 
 const start = async () => {
   try {
+    // Выводим все переменные окружения при запуске
+    console.log('🔧 Переменные окружения:');
+    console.log('=====================================');
+    console.log('NODE_ENV:', process.env.NODE_ENV || 'не установлено');
+    console.log('PORT:', process.env.PORT || 'не установлено');
+    console.log('DB_URL:', process.env.DB_URL || 'не установлено');
+    console.log('JWT_ACCESS_SECRET:', process.env.JWT_ACCESS_SECRET ? '***установлено***' : 'не установлено');
+    console.log('JWT_REFRESH_SECRET:', process.env.JWT_REFRESH_SECRET ? '***установлено***' : 'не установлено');
+    console.log('TWOGIS_API_KEY:', process.env.TWOGIS_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('ROSREESTR_API_KEY:', process.env.ROSREESTR_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('CORS_ORIGIN:', process.env.CORS_ORIGIN || 'не установлено');
+    console.log('USE_EXPO_LOCATION:', process.env.USE_EXPO_LOCATION || 'не установлено');
+    console.log('USE_EXPO_MAPS:', process.env.USE_EXPO_MAPS || 'не установлено');
+    console.log('LOG_LEVEL:', process.env.LOG_LEVEL || 'не установлено');
+    console.log('BOOKING_API_KEY:', process.env.BOOKING_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('TRIPADVISOR_API_KEY:', process.env.TRIPADVISOR_API_KEY ? '***установлено***' : 'не установлено');
+    console.log('=====================================');
+    
     const dbUrl = process.env.DB_URL || 'mongodb://mongo:27017/rostov-ai-travel';
     console.log('Connecting to database:', dbUrl);
     await mongoose.connect(dbUrl);
