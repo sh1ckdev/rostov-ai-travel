@@ -344,9 +344,11 @@ class POIController {
         parseInt(radius)
       ).populate('createdBy', 'username');
 
+      // Возвращаем пустой массив если POI не найдены (не ошибку)
       res.json({
         success: true,
-        data: pois
+        data: pois || [],
+        message: pois.length === 0 ? 'POI рядом не найдены. Попробуйте увеличить радиус поиска.' : undefined
       });
     } catch (error) {
       next(error);

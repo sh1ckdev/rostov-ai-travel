@@ -85,14 +85,22 @@ const MapsScreen = observer(() => {
     try {
       setLoading(true);
       const data = await MapService.getPOIsInRadius(latitude, longitude, 10000); // 10 км радиус
-      setPois(data);
       
-      const recommendedRegion = MapService.getRecommendedRegion(data);
-      setMapRegion(recommendedRegion);
+      // Если ближайших POI нет, загружаем все
+      if (data && data.length > 0) {
+        setPois(data);
+        const recommendedRegion = MapService.getRecommendedRegion(data);
+        setMapRegion(recommendedRegion);
+      } else {
+        console.log('Ближайших POI не найдено, загружаем все');
+        await loadPOIs();
+      }
     } catch (error) {
       console.error('Ошибка загрузки ближайших POI:', error);
       // Если не удалось загрузить ближайшие, загружаем все
-      loadPOIs();
+      await loadPOIs();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -100,14 +108,26 @@ const MapsScreen = observer(() => {
     try {
       setLoading(true);
       const data = await MapService.getPOIs();
-      setPois(data);
+      setPois(data || []);
       
       // Устанавливаем регион карты для отображения всех POI
-      const recommendedRegion = MapService.getRecommendedRegion(data);
-      setMapRegion(recommendedRegion);
+      if (data && data.length > 0) {
+        const recommendedRegion = MapService.getRecommendedRegion(data);
+        setMapRegion(recommendedRegion);
+      } else {
+        console.log('База POI пустая. Используйте демо-режим или добавьте POI.');
+        // Центрируем на Ростове-на-Дону
+        setMapRegion({
+          latitude: 47.2357,
+          longitude: 39.7125,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
+      }
     } catch (error) {
       console.error('Ошибка загрузки POI:', error);
       Alert.alert('Ошибка', 'Не удалось загрузить точки интереса');
+      setPois([]);
     } finally {
       setLoading(false);
     }

@@ -68,10 +68,24 @@ router.get('/test', (req, res) => {
 
 // ==================== POI Routes ====================
 
+// ВАЖНО: Специфичные роуты должны быть ПЕРЕД параметризованными!
+
+// Получить статистику POI
+router.get('/pois/stats', poiController.getPOIStats)
+
+// Поиск POI
+router.get('/pois/search', searchPOIsValidation, poiController.searchPOIs)
+
+// Получить POI рядом с точкой
+router.get('/pois/nearby', getNearbyPOIsValidation, poiController.getNearbyPOIs)
+
+// Получить POI по категории
+router.get('/pois/category/:category', getPOIsValidation, poiController.getPOIsByCategory)
+
 // Получить все POI
 router.get('/pois', getPOIsValidation, poiController.getPOIs)
 
-// Получить POI по ID
+// Получить POI по ID (должен быть в конце!)
 router.get('/pois/:id', getPOIValidation, poiController.getPOIById)
 
 // Создать новый POI
@@ -83,19 +97,21 @@ router.put('/pois/:id', authMiddleware, updatePOIValidation, poiController.updat
 // Удалить POI
 router.delete('/pois/:id', authMiddleware, getPOIValidation, poiController.deletePOI)
 
-// Получить POI по категории
-router.get('/pois/category/:category', getPOIsValidation, poiController.getPOIsByCategory)
-
-// Поиск POI
-router.get('/pois/search', searchPOIsValidation, poiController.searchPOIs)
-
-// Получить POI рядом с точкой
-router.get('/pois/nearby', getNearbyPOIsValidation, poiController.getNearbyPOIs)
-
-// Получить статистику POI
-router.get('/pois/stats', poiController.getPOIStats)
-
 // ==================== Route Routes ====================
+
+// ВАЖНО: Специфичные роуты ПЕРЕД параметризованными!
+
+// Получить статистику маршрутов
+router.get('/routes/stats', routeController.getRouteStats)
+
+// Получить популярные маршруты
+router.get('/routes/popular', routeController.getPopularRoutes)
+
+// Поиск маршрутов
+router.get('/routes/search', searchRoutesValidation, routeController.searchRoutes)
+
+// Получить маршруты пользователя
+router.get('/routes/user/my', authMiddleware, getRoutesValidation, routeController.getUserRoutes)
 
 // Получить все маршруты
 router.get('/routes', getRoutesValidation, routeController.getRoutes)
@@ -112,23 +128,11 @@ router.put('/routes/:id', authMiddleware, updateRouteValidation, routeController
 // Удалить маршрут
 router.delete('/routes/:id', authMiddleware, getRouteValidation, routeController.deleteRoute)
 
-// Получить маршруты пользователя
-router.get('/routes/user/my', authMiddleware, getRoutesValidation, routeController.getUserRoutes)
-
-// Поиск маршрутов
-router.get('/routes/search', searchRoutesValidation, routeController.searchRoutes)
-
-// Получить популярные маршруты
-router.get('/routes/popular', routeController.getPopularRoutes)
-
 // Лайкнуть маршрут
 router.post('/routes/:id/like', likeRouteValidation, routeController.likeRoute)
 
 // Отметить маршрут как пройденный
 router.post('/routes/:id/complete', completeRouteValidation, routeController.completeRoute)
-
-// Получить статистику маршрутов
-router.get('/routes/stats', routeController.getRouteStats)
 
 // ==================== Map Routes ====================
 
@@ -161,6 +165,26 @@ router.get('/map/distance', calculateDistanceValidation, mapController.calculate
 
 // ==================== Hotel Routes ====================
 
+// ВАЖНО: Специфичные роуты ПЕРЕД параметризованными!
+
+// Получить статистику отелей
+router.get('/hotels/stats', hotelController.getHotelStats)
+
+// Получить избранные отели
+router.get('/hotels/featured', hotelController.getFeaturedHotels)
+
+// Поиск отелей
+router.get('/hotels/search', searchHotelsValidation, hotelController.searchHotels)
+
+// Получить отели рядом с точкой
+router.get('/hotels/nearby', getNearbyHotelsValidation, hotelController.getNearbyHotels)
+
+// Получить бронирования пользователя
+router.get('/hotels/bookings/my', authMiddleware, hotelController.getUserBookings)
+
+// Получить отели по городу
+router.get('/hotels/city/:city', getHotelsValidation, hotelController.getHotelsByCity)
+
 // Получить все отели
 router.get('/hotels', getHotelsValidation, hotelController.getHotels)
 
@@ -176,26 +200,8 @@ router.put('/hotels/:id', authMiddleware, updateHotelValidation, hotelController
 // Удалить отель
 router.delete('/hotels/:id', authMiddleware, getHotelValidation, hotelController.deleteHotel)
 
-// Получить отели по городу
-router.get('/hotels/city/:city', getHotelsValidation, hotelController.getHotelsByCity)
-
-// Поиск отелей
-router.get('/hotels/search', searchHotelsValidation, hotelController.searchHotels)
-
-// Получить отели рядом с точкой
-router.get('/hotels/nearby', getNearbyHotelsValidation, hotelController.getNearbyHotels)
-
-// Получить избранные отели
-router.get('/hotels/featured', hotelController.getFeaturedHotels)
-
-// Получить статистику отелей
-router.get('/hotels/stats', hotelController.getHotelStats)
-
 // Создать бронирование
 router.post('/hotels/:id/bookings', authMiddleware, createBookingValidation, hotelController.createBooking)
-
-// Получить бронирования пользователя
-router.get('/hotels/bookings/my', authMiddleware, hotelController.getUserBookings)
 
 // Отменить бронирование
 router.delete('/hotels/:id/bookings/:bookingId', authMiddleware, cancelBookingValidation, hotelController.cancelBooking)
