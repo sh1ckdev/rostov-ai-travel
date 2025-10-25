@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert, Platform, ScrollView, TouchableOpacity, Text } from 'react-native';
-import * as Location from 'expo-location';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import { Route } from '../services/DirectionsService';
-import { DirectionsService } from '../services/DirectionsService';
 import { IconSymbol } from './ui/icon-symbol';
-import OpenStreetMapView from './OpenStreetMapView';
+import YandexMapView from './YandexMapView';
 
 interface MapViewComponentProps {
   style?: any;
@@ -36,7 +34,7 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
   mapType = 'standard',
 }) => {
   return (
-    <OpenStreetMapView
+    <YandexMapView
       style={style}
       onLocationSelect={onLocationSelect}
       showUserLocation={showUserLocation}
@@ -45,10 +43,14 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
       mapType={mapType}
     >
       {children}
-    </OpenStreetMapView>
+    </YandexMapView>
   );
 };
 
-// Стили больше не нужны, так как используется OpenStreetMapView
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 export default MapViewComponent;

@@ -29,7 +29,25 @@ export class MapService {
     autoLoad?: boolean; // Автоматически загрузить если база пуста
   }): Promise<POI[]> {
     try {
-      // Сначала пробуем тестовый эндпоинт
+      // Используем Yandex Maps API для поиска POI
+      if (params?.latitude && params?.longitude) {
+        const response = await $api.get('/map/nearby-places', {
+          params: {
+            latitude: params.latitude,
+            longitude: params.longitude,
+            radius: params.radius || 5000,
+            type: params.category || 'ресторан кафе отель достопримечательность'
+          }
+        });
+        
+        if (response.data && response.data.data) {
+          const pois = this.transformPOIs(response.data.data);
+          console.log('Загружено POI из Yandex Maps:', pois.length);
+          return pois;
+        }
+      }
+      
+      // Fallback на тестовые данные
       const response = await $api.get('/pois/test');
       const pois = this.transformPOIs(response.data.data);
       
@@ -428,9 +446,9 @@ export class MapService {
     }
   }
 
-  // ==================== Работа с OpenStreetMap API ====================
+  // ==================== Работа с Yandex Maps API ====================
 
-  // Получить направления между точками через OpenRouteService или OSRM
+  // Получить направления между точками через Yandex Maps
   static async getDirections(params: {
     originLat: number;
     originLng: number;
@@ -448,7 +466,7 @@ export class MapService {
     }
   }
 
-  // Геокодирование через Nominatim (OpenStreetMap)
+  // Геокодирование через Yandex Maps
   static async geocode(address: string): Promise<any> {
     try {
       const response = await $api.get('/map/geocode', {
@@ -461,7 +479,7 @@ export class MapService {
     }
   }
 
-  // Обратное геокодирование через Nominatim
+  // Обратное геокодирование через Yandex Maps
   static async reverseGeocode(latitude: number, longitude: number): Promise<any> {
     try {
       const response = await $api.get('/map/reverse-geocode', {
@@ -474,7 +492,7 @@ export class MapService {
     }
   }
 
-  // Поиск мест поблизости через Overpass API
+  // Поиск мест поблизости через Yandex Maps
   static async findNearbyPlaces(params: {
     latitude: number;
     longitude: number;

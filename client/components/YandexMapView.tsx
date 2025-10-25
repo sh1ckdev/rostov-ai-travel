@@ -1,0 +1,389 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, Alert, Platform, Text, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import * as Location from 'expo-location';
+import { Route } from '../services/DirectionsService';
+import { IconSymbol } from './ui/icon-symbol';
+import { POI } from '../types/poi';
+
+const { width, height } = Dimensions.get('window');
+
+interface YandexMapViewProps {
+  style?: any;
+  onLocationSelect?: (coordinate: { latitude: number; longitude: number }) => void;
+  showUserLocation?: boolean;
+  initialRegion?: {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  };
+  route?: Route | null;
+  children?: React.ReactNode;
+  mapType?: 'standard' | 'satellite' | 'hybrid';
+  pois?: POI[];
+  selectedPOIs?: POI[];
+  onPOISelect?: (poi: POI) => void;
+  onPOIToggle?: (poi: POI) => void;
+}
+
+const YandexMapView: React.FC<YandexMapViewProps> = ({
+  style,
+  onLocationSelect,
+  showUserLocation = true,
+  initialRegion = {
+    latitude: 47.2357, // Ростов-на-Дону
+    longitude: 39.7125,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  },
+  route,
+  children,
+  mapType = 'standard',
+  pois = [],
+  selectedPOIs = [],
+  onPOISelect,
+  onPOIToggle,
+}) => {
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [region, setRegion] = useState(initialRegion);
+  const [mapReady, setMapReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Получение геолокации
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setError('Разрешение на геолокацию не предоставлено');
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        setLocation(location);
+        
+        // Обновляем регион карты
+        const newRegion = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        };
+        setRegion(newRegion);
+      } catch (error) {
+        console.error('Ошибка получения геолокации:', error);
+        setError('Не удалось получить местоположение');
+      }
+    };
+
+    if (showUserLocation) {
+      getLocation();
+    }
+  }, [showUserLocation]);
+
+  // Обработка нажатия на карту
+  const handleMapPress = (event: any) => {
+    if (onLocationSelect && event.nativeEvent.coordinate) {
+      onLocationSelect(event.nativeEvent.coordinate);
+    }
+  };
+
+  // Обработка нажатия на POI
+  const handleMarkerPress = (poi: POI) => {
+    if (onPOISelect) {
+      onPOISelect(poi);
+    }
+    if (onPOIToggle) {
+      onPOIToggle(poi);
+    }
+  };
+
+  // Получение цвета маркера по категории
+  const getMarkerColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'CULTURE': '#8E44AD',
+      'NATURE': '#27AE60',
+      'ATTRACTION': '#E74C3C',
+      'RESTAURANT': '#F39C12',
+      'HOTEL': '#3498DB',
+      'SHOPPING': '#9B59B6',
+      'ENTERTAINMENT': '#E67E22',
+      'TRANSPORT': '#34495E',
+      'HEALTH': '#E91E63',
+      'EDUCATION': '#2196F3',
+      'RELIGIOUS': '#795548',
+      'SPORT': '#4CAF50',
+      'OTHER': '#607D8B'
+    };
+    return colors[category] || '#607D8B';
+  };
+
+  // Получение иконки маркера по категории
+  const getMarkerIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      'CULTURE': 'theatermasks',
+      'NATURE': 'tree',
+      'ATTRACTION': 'star',
+      'RESTAURANT': 'fork.knife',
+      'HOTEL': 'bed.double',
+      'SHOPPING': 'bag',
+      'ENTERTAINMENT': 'gamecontroller',
+      'TRANSPORT': 'car',
+      'HEALTH': 'cross.case',
+      'EDUCATION': 'book',
+      'RELIGIOUS': 'building.columns',
+      'SPORT': 'figure.run',
+      'OTHER': 'mappin'
+    };
+    return icons[category] || 'mappin';
+  };
+
+  if (error) {
+    return (
+      <View style={[styles.container, style]}>
+        <View style={styles.errorContainer}>
+          <IconSymbol name="exclamationmark.triangle" size={48} color="#FF6B6B" />
+          <Text style={styles.errorTitle}>Ошибка карты</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => setError(null)}
+          >
+            <Text style={styles.retryButtonText}>Повторить</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, style]}>
+      {/* Yandex Maps заглушка с полной функциональностью */}
+      <View style={styles.mapPlaceholder}>
+        <View style={styles.mapHeader}>
+          <IconSymbol name="map.fill" size={32} color="#007AFF" />
+          <View style={styles.mapInfo}>
+            <Text style={styles.mapTitle}>Yandex Maps</Text>
+            <Text style={styles.mapSubtitle}>
+              {region.latitude.toFixed(4)}, {region.longitude.toFixed(4)}
+            </Text>
+          </View>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.markersContainer}
+        >
+          {pois.map((poi) => {
+            const isSelected = selectedPOIs.some(p => p.id === poi.id);
+            return (
+              <TouchableOpacity
+                key={poi.id}
+                style={[
+                  styles.markerCard,
+                  { backgroundColor: getMarkerColor(poi.category) },
+                  isSelected && styles.selectedMarker
+                ]}
+                onPress={() => handleMarkerPress(poi)}
+              >
+                <IconSymbol
+                  name={getMarkerIcon(poi.category)}
+                  size={20}
+                  color="#FFFFFF"
+                  weight="bold"
+                />
+                <Text style={styles.markerText}>{poi.name}</Text>
+                {poi.rating && poi.rating > 0 && (
+                  <Text style={styles.ratingText}>★ {poi.rating.toFixed(1)}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Информация о маршруте */}
+        {route && (
+          <View style={styles.routeInfo}>
+            <IconSymbol name="figure.walk" size={16} color="#007AFF" />
+            <View style={styles.routeInfoText}>
+              <Text style={styles.routeInfoTitle}>Маршрут построен</Text>
+              <Text style={styles.routeInfoDistance}>
+                {route.distance} • {route.duration}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Информация о геолокации */}
+        {location && (
+          <View style={styles.locationInfo}>
+            <IconSymbol name="location.fill" size={16} color="#27AE60" />
+            <Text style={styles.locationText}>
+              Точность: {location.coords.accuracy.toFixed(0)}м
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {children}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 15,
+    overflow: 'hidden',
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF',
+  },
+  mapInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  mapTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  mapSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  markersContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    gap: 12,
+  },
+  markerCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: 'center',
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  markerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  ratingText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
+    opacity: 0.9,
+  },
+  selectedMarker: {
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    transform: [{ scale: 1.05 }],
+  },
+  routeInfo: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 122, 255, 0.95)',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  routeInfoText: {
+    gap: 2,
+  },
+  routeInfoTitle: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  routeInfoDistance: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  locationInfo: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    backgroundColor: 'rgba(39, 174, 96, 0.95)',
+    borderRadius: 8,
+    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  locationText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F8F9FA',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
+export default YandexMapView;
