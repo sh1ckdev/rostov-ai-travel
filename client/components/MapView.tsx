@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Route } from '../services/DirectionsService';
 import { IconSymbol } from './ui/icon-symbol';
-import YandexMapView from './YandexMapView';
+import ExpoMapView from './ExpoMapView';
 
 interface MapViewComponentProps {
   style?: any;
@@ -34,7 +34,7 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
   mapType = 'standard',
 }) => {
   return (
-    <YandexMapView
+    <ExpoMapView
       style={style}
       onLocationSelect={onLocationSelect}
       showUserLocation={showUserLocation}
@@ -43,7 +43,7 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
       mapType={mapType}
     >
       {children}
-    </YandexMapView>
+    </ExpoMapView>
   );
 };
 

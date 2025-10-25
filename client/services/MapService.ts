@@ -41,7 +41,7 @@ export class MapService {
         });
         
         if (response.data && response.data.data) {
-          const pois = this.transformPOIs(response.data.data);
+      const pois = this.transformPOIs(response.data.data);
           console.log('Загружено POI из Yandex Maps:', pois.length);
           return pois;
         }
