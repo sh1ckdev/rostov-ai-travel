@@ -11,9 +11,8 @@ services:
     networks:
       - apinet
     depends_on:
-      mysql:
-        condition: service_healthy
-      hashservice:
+      - mysql
+      - hashservice
     ports:
       - "0.0.0.0:8080:8080"
 
