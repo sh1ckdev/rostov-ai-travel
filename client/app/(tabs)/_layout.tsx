@@ -126,33 +126,29 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            // Используем tabBarLabel вместо title, чтобы Expo Router рендерил текст
             tabBarLabel: 'Главная', 
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
                 iconName={focused ? "house.fill" : "house"}
-                // Убираем title из TabItem, чтобы избежать дублирования
-                // Если Expo Router не рендерит текст под иконкой, тогда нужно будет вернуть
-                // и Text, но с условием focused && !renderDefaultLabel
               />
             ),
           }}
         />
         
         <Tabs.Screen
-          name="explore"
+          name="ai"
           options={{
-            tabBarLabel: 'Исследовать',
+            tabBarLabel: 'AI',
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
-                iconName={focused ? "safari.fill" : "safari"}
+                iconName={focused ? "brain.head.profile" : "brain.head.profile"}
               />
             ),
           }}
         />
-        
+
         <Tabs.Screen
           name="maps"
           options={{

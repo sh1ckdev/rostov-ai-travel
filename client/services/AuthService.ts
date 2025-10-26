@@ -1,4 +1,4 @@
-import { $api } from "../constants/http";
+import { $api, initializeAPI } from "../constants/http";
 
 export interface AuthResponse {
   accessToken: string;

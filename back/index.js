@@ -9,9 +9,33 @@ const errorMiddleware = require('./middlewares/error-middleware')
 const PORT = process.env.PORT || 5000;
 const app = express();
 
-// Разрешаем CORS для всех источников
+// Разрешаем CORS для локальной разработки
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:19006',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:19006',
+  'http://10.60.104.3:3000',
+  'http://10.60.104.3:19006',
+  'http://10.60.104.3:5000',
+  'http://192.168.31.250:3000',
+  'http://192.168.31.250:19006',
+  'http://192.168.31.250:5000',
+  'http://138.124.14.197:5000'
+];
+
 app.use(cors({
-  origin: true, // Разрешаем все источники
+  origin: function (origin, callback) {
+    // Разрешаем запросы без origin (например, мобильные приложения)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true, 
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'], 
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
@@ -91,7 +115,7 @@ const start = async () => {
     console.log('TRIPADVISOR_API_KEY:', process.env.TRIPADVISOR_API_KEY ? '***установлено***' : 'не установлено');
     console.log('=====================================');
     
-    const dbUrl = process.env.DB_URL || 'mongodb://mongo:27017/rostov-ai-travel';
+    const dbUrl = process.env.DB_URL || 'mongodb://138.124.14.197:27017/rostov-ai-travel';
     console.log('Connecting to database:', dbUrl);
     await mongoose.connect(dbUrl);
     
@@ -101,9 +125,11 @@ const start = async () => {
       console.log(`📡 Доступен по адресам:`);
       console.log(`- http://localhost:${PORT}`);
       console.log(`- http://127.0.0.1:${PORT}`);
+      console.log(`- http://10.60.104.3:${PORT}`);
       console.log(`- http://192.168.31.250:${PORT}`);
       console.log(`🌐 Внешний доступ: http://138.124.14.197:${PORT}`);
       console.log(`✅ API готов к работе!`);
+      console.log(`🔧 Для клиентской части используйте: http://10.60.104.3:${PORT}/api`);
     });
   } catch(e) {
     console.log(e)

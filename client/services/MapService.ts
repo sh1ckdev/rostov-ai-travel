@@ -1,54 +1,57 @@
 import { POI, POICategory, MapRegion } from '../types/poi';
 import { $api } from '@/constants/http';
+import { staticPOIs, getPOIsByLocation, searchPOIs, getPOIsByCategory } from '../data/staticPOI';
+import { staticRestaurants, getRestaurantsByLocation, searchRestaurants } from '../data/staticRestaurants';
+import { staticEvents, getEventsByLocation, searchEvents } from '../data/staticEvents';
 
 export class MapService {
-  // Автоматически загрузить POI из 2GIS
+  // Автоматически загрузить POI (используем статические данные)
   static async autoLoadPOIs(latitude: number, longitude: number, radius = 10000): Promise<{ success: boolean; count: number; message: string }> {
     try {
-      const response = await $api.get('/pois/auto-load', {
-        params: { latitude, longitude, radius }
-      });
-      return response.data;
+      // Используем статические данные
+      const pois = getPOIsByLocation(latitude, longitude, radius / 1000); // Конвертируем в км
+      
+      return {
+        success: true,
+        count: pois.length,
+        message: `Загружено ${pois.length} точек интереса из статических данных`
+      };
     } catch (error) {
       console.error('Ошибка автоматической загрузки POI:', error);
-      throw error;
+      return {
+        success: false,
+        count: 0,
+        message: 'Ошибка загрузки POI'
+      };
     }
   }
 
-  // Улучшенный поиск POI с использованием нескольких источников
+  // Улучшенный поиск POI (используем статические данные)
   static async getEnhancedPOIs(latitude: number, longitude: number, radius = 10000, query = ''): Promise<POI[]> {
     try {
-      const response = await $api.get('/map/enhanced-pois', {
-        params: { latitude, longitude, radius, query }
-      });
+      // Используем статические данные
+      let pois = getPOIsByLocation(latitude, longitude, radius / 1000);
       
-      if (response.data && response.data.data) {
-        const pois = MapService.transformPOIs(response.data.data);
-        console.log('Загружено улучшенных POI:', pois.length);
-        return pois;
+      // Если есть поисковый запрос, фильтруем результаты
+      if (query.trim()) {
+        pois = searchPOIs(query);
       }
       
-      return [];
+      console.log('Загружено улучшенных POI:', pois.length);
+      return pois;
     } catch (error) {
       console.error('Ошибка загрузки улучшенных POI:', error);
-      return MapService.getPOIs();
+      return staticPOIs.slice(0, 10); // Возвращаем первые 10 POI
     }
   }
 
-  // Поиск POI по названию
+  // Поиск POI по названию (используем статические данные)
   static async searchPOIByName(query: string, limit = 10): Promise<POI[]> {
     try {
-      const response = await $api.get('/map/search-pois', {
-        params: { query, limit }
-      });
-      
-      if (response.data && response.data.data) {
-        const pois = MapService.transformPOIs(response.data.data);
-        console.log('Найдено POI по названию:', pois.length);
-        return pois;
-      }
-      
-      return [];
+      // Используем статические данные
+      const pois = searchPOIs(query).slice(0, limit);
+      console.log('Найдено POI по названию:', pois.length);
+      return pois;
     } catch (error) {
       console.error('Ошибка поиска POI по названию:', error);
       return [];
@@ -190,11 +193,21 @@ export class MapService {
     limit?: number;
   }): Promise<POI[]> {
     try {
-      const response = await $api.get(`/pois/category/${category}`, { params });
-      return MapService.transformPOIs(response.data.data);
+      // Используем статические данные
+      let pois = getPOIsByCategory(category);
+      
+      // Применяем пагинацию если нужно
+      if (params?.limit) {
+        const startIndex = (params.page || 0) * params.limit;
+        pois = pois.slice(startIndex, startIndex + params.limit);
+      }
+      
+      console.log(`Загружено ${pois.length} POI категории ${category}`);
+      return pois;
     } catch (error) {
       console.error('Ошибка загрузки POI по категории:', error);
-      throw error;
+      // Возвращаем пустой массив в случае ошибки
+      return [];
     }
   }
 
@@ -609,6 +622,169 @@ export class MapService {
     } catch (error) {
       console.error('Ошибка вычисления расстояния:', error);
       throw error;
+    }
+  }
+
+  // ==================== Работа с ресторанами ====================
+
+  // Получить все рестораны
+  static async getRestaurants(params?: {
+    page?: number;
+    limit?: number;
+    cuisine?: string;
+    priceRange?: { min: number; max: number };
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+  }): Promise<any[]> {
+    try {
+      let restaurants = staticRestaurants;
+
+      // Фильтрация по кухне
+      if (params?.cuisine) {
+        restaurants = restaurants.filter(restaurant =>
+          restaurant.cuisine.some(c => c.toLowerCase().includes(params.cuisine!.toLowerCase()))
+        );
+      }
+
+      // Фильтрация по ценовому диапазону
+      if (params?.priceRange) {
+        restaurants = restaurants.filter(restaurant =>
+          restaurant.priceLevel >= params.priceRange!.min && restaurant.priceLevel <= params.priceRange!.max
+        );
+      }
+
+      // Фильтрация по местоположению
+      if (params?.latitude && params?.longitude) {
+        restaurants = getRestaurantsByLocation(
+          params.latitude,
+          params.longitude,
+          (params.radius || 10000) / 1000
+        );
+      }
+
+      // Пагинация
+      if (params?.limit) {
+        const startIndex = (params.page || 0) * params.limit;
+        restaurants = restaurants.slice(startIndex, startIndex + params.limit);
+      }
+
+      console.log(`Загружено ${restaurants.length} ресторанов`);
+      return restaurants;
+    } catch (error) {
+      console.error('Ошибка загрузки ресторанов:', error);
+      return [];
+    }
+  }
+
+  // Поиск ресторанов
+  static async searchRestaurants(query: string, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      let restaurants = searchRestaurants(query);
+
+      // Пагинация
+      if (params?.limit) {
+        const startIndex = (params.page || 0) * params.limit;
+        restaurants = restaurants.slice(startIndex, startIndex + params.limit);
+      }
+
+      console.log(`Найдено ${restaurants.length} ресторанов по запросу "${query}"`);
+      return restaurants;
+    } catch (error) {
+      console.error('Ошибка поиска ресторанов:', error);
+      return [];
+    }
+  }
+
+  // ==================== Работа с событиями ====================
+
+  // Получить все события
+  static async getEvents(params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    dateRange?: { start: Date; end: Date };
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+  }): Promise<any[]> {
+    try {
+      let events = staticEvents;
+
+      // Фильтрация по категории
+      if (params?.category) {
+        events = events.filter(event => event.category === params.category);
+      }
+
+      // Фильтрация по дате
+      if (params?.dateRange) {
+        events = events.filter(event =>
+          event.startDate >= params.dateRange!.start && event.startDate <= params.dateRange!.end
+        );
+      }
+
+      // Фильтрация по местоположению
+      if (params?.latitude && params?.longitude) {
+        events = getEventsByLocation(
+          params.latitude,
+          params.longitude,
+          (params.radius || 10000) / 1000
+        );
+      }
+
+      // Пагинация
+      if (params?.limit) {
+        const startIndex = (params.page || 0) * params.limit;
+        events = events.slice(startIndex, startIndex + params.limit);
+      }
+
+      console.log(`Загружено ${events.length} событий`);
+      return events;
+    } catch (error) {
+      console.error('Ошибка загрузки событий:', error);
+      return [];
+    }
+  }
+
+  // Поиск событий
+  static async searchEvents(query: string, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<any[]> {
+    try {
+      let events = searchEvents(query);
+
+      // Пагинация
+      if (params?.limit) {
+        const startIndex = (params.page || 0) * params.limit;
+        events = events.slice(startIndex, startIndex + params.limit);
+      }
+
+      console.log(`Найдено ${events.length} событий по запросу "${query}"`);
+      return events;
+    } catch (error) {
+      console.error('Ошибка поиска событий:', error);
+      return [];
+    }
+  }
+
+  // Получить предстоящие события
+  static async getUpcomingEvents(limit: number = 10): Promise<any[]> {
+    try {
+      const now = new Date();
+      const upcomingEvents = staticEvents
+        .filter(event => event.startDate > now && event.isAvailable)
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        .slice(0, limit);
+
+      console.log(`Загружено ${upcomingEvents.length} предстоящих событий`);
+      return upcomingEvents;
+    } catch (error) {
+      console.error('Ошибка загрузки предстоящих событий:', error);
+      return [];
     }
   }
 }

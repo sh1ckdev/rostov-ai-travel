@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Switch, KeyboardAvoidingView, Platform, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from './ui/icon-symbol';
 import { AIService } from '../services/AIService';
 
@@ -7,6 +8,7 @@ interface AIRoutePlannerProps {
   onRouteCreated?: (route: any) => void;
   onRouteSelect?: (route: any) => void;
   onClose?: () => void;
+  fullScreen?: boolean;
 }
 
 interface RouteParams {
@@ -21,14 +23,15 @@ interface RouteParams {
   interests: string[];
   duration: number;
   budget: number;
-  transportMode: string;
+  transportMode: 'walking' | 'cycling' | 'public' | 'car';
   excludeCategories: string[];
 }
 
 const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   onRouteCreated,
   onRouteSelect,
-  onClose
+  onClose,
+  fullScreen = false,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [routes, setRoutes] = useState<any[]>([]);
@@ -45,16 +48,17 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   });
 
   const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
+  const pulseAnim = new Animated.Value(1);
 
   const interestOptions = [
-    { id: 'culture', label: 'Культура', icon: 'theatermasks' },
-    { id: 'history', label: 'История', icon: 'building.columns' },
-    { id: 'nature', label: 'Природа', icon: 'tree' },
-    { id: 'food', label: 'Еда', icon: 'fork.knife' },
-    { id: 'shopping', label: 'Шопинг', icon: 'bag' },
-    { id: 'entertainment', label: 'Развлечения', icon: 'gamecontroller' },
-    { id: 'sports', label: 'Спорт', icon: 'figure.run' },
-    { id: 'art', label: 'Искусство', icon: 'paintbrush' }
+    { id: 'culture', label: 'Культура', icon: 'theatermasks', gradient: ['#667eea', '#764ba2'] },
+    { id: 'history', label: 'История', icon: 'building.columns', gradient: ['#f093fb', '#f5576c'] },
+    { id: 'nature', label: 'Природа', icon: 'tree', gradient: ['#4facfe', '#00f2fe'] },
+    { id: 'food', label: 'Еда', icon: 'fork.knife', gradient: ['#fa709a', '#fee140'] },
+    { id: 'shopping', label: 'Шопинг', icon: 'bag', gradient: ['#30cfd0', '#330867'] },
+    { id: 'entertainment', label: 'Развлечения', icon: 'gamecontroller', gradient: ['#a8edea', '#fed6e3'] },
+    { id: 'sports', label: 'Спорт', icon: 'figure.run', gradient: ['#ffecd2', '#fcb69f'] },
+    { id: 'art', label: 'Искусство', icon: 'paintbrush', gradient: ['#667eea', '#764ba2'] }
   ];
 
   const transportModes = [
@@ -75,6 +79,21 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   useEffect(() => {
     // Получаем текущее местоположение
     getCurrentLocation();
+    // Пульсация кнопки AI
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.02,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
 
   const getCurrentLocation = async () => {
@@ -113,7 +132,7 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
 
     setIsLoading(true);
     try {
-      const routeData = await AIService.createAIRoute(params);
+      const routeData = await AIService.createAIRoute(params as any);
       setRoutes(routeData);
       if (routeData.length > 0) {
         setSelectedRoute(routeData[0]);
@@ -164,12 +183,7 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <IconSymbol name="map" size={24} color="#007AFF" />
@@ -245,7 +259,7 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
                   styles.transportButton,
                   params.transportMode === mode.id && styles.transportButtonSelected
                 ]}
-                onPress={() => setParams(prev => ({ ...prev, transportMode: mode.id }))}
+                onPress={() => setParams(prev => ({ ...prev, transportMode: mode.id as any }))}
               >
                 <IconSymbol 
                   name={mode.icon} 
@@ -287,16 +301,28 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.createButton, isLoading && styles.createButtonDisabled]}
-        onPress={createRoute}
-        disabled={isLoading || params.interests.length === 0}
-      >
-        <IconSymbol name="sparkles" size={20} color="#FFFFFF" />
-        <Text style={styles.createButtonText}>
-          {isLoading ? 'Создаем маршрут...' : 'Создать AI-маршрут'}
-        </Text>
-      </TouchableOpacity>
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={[styles.createButton, isLoading && styles.createButtonDisabled]}
+          onPress={createRoute}
+          disabled={isLoading || params.interests.length === 0}
+        >
+          <LinearGradient
+            colors={params.interests.length > 0 ? ['#007AFF', '#007AFF'] : ['#E9ECEF', '#CED4DA']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.createButtonGradient}
+          >
+            <View style={styles.aiIconWrapper}>
+              <IconSymbol name="sparkles" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.createButtonText}>
+              {isLoading ? '🤖 Создаю маршрут...' : ' Создать AI-маршрут'}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
 
       {routes.length > 0 && (
         <View style={styles.routesSection}>
@@ -353,38 +379,30 @@ const AIRoutePlanner: React.FC<AIRoutePlannerProps> = ({
         </View>
       )}
       </ScrollView>
-    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
   scrollContainer: {
     flex: 1,
+    backgroundColor: '#F8F9FF',
+  },
+  scrollContent: {
+    paddingBottom: 120, // Отступ для навигационной панели
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E9ECEF',
+    borderBottomWidth: 0,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -392,55 +410,71 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#333',
-    marginLeft: 8,
+    marginLeft: 12,
+    letterSpacing: -0.3,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F8F9FA',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F3FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   section: {
-    padding: 16,
+    padding: 20,
     backgroundColor: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1a1a2e',
+    marginBottom: 14,
   },
   interestsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   interestButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E0E7FF',
+    backgroundColor: '#F8F9FF',
   },
   interestButtonSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#667eea',
+    borderColor: '#667eea',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   interestText: {
-    marginLeft: 6,
+    marginLeft: 8,
     fontSize: 14,
-    color: '#007AFF',
+    fontWeight: '600',
+    color: '#667eea',
   },
   interestTextSelected: {
     color: '#FFFFFF',
+    fontWeight: '700',
   },
   paramRow: {
     marginBottom: 16,
@@ -509,22 +543,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   createButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    margin: 16,
+    marginTop: 20,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  createButtonDisabled: {
+    shadowOpacity: 0.1,
+  },
+  createButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: 16,
-    paddingVertical: 16,
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
-  createButtonDisabled: {
-    backgroundColor: '#E9ECEF',
+  aiIconWrapper: {
+    marginRight: 10,
   },
   createButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   routesSection: {
     padding: 16,

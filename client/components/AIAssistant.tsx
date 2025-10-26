@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { IconSymbol } from './ui/icon-symbol';
 import { AIService, ChatMessage, AIRecommendation } from '../services/AIService';
 
@@ -7,17 +7,21 @@ interface AIAssistantProps {
   onRecommendationPress?: (recommendation: AIRecommendation) => void;
   onRouteCreate?: (routeData: any) => void;
   onClose?: () => void;
+  fullScreen?: boolean;
 }
 
 const AIAssistant: React.FC<AIAssistantProps> = ({
   onRecommendationPress,
   onRouteCreate,
-  onClose
+  onClose,
+  fullScreen = false,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const textInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     // Добавляем приветственное сообщение
@@ -71,6 +75,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
+    Keyboard.dismiss(); // Убираем клавиатуру после отправки
     setIsLoading(true);
 
     try {
@@ -116,9 +121,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
   return (
     <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      style={[styles.container, fullScreen && styles.containerFull]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 150 : 140}
     >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -179,8 +184,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         )}
       </ScrollView>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, isInputFocused && styles.inputContainerFocused]}>
         <TextInput
+          ref={textInputRef}
           style={styles.textInput}
           value={inputText}
           onChangeText={setInputText}
@@ -188,6 +194,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           placeholderTextColor="#999"
           multiline
           maxLength={500}
+          onFocus={() => setIsInputFocused(true)}
+          onBlur={() => setIsInputFocused(false)}
         />
         <TouchableOpacity
           style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
@@ -209,18 +217,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FA',
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  },
+  containerFull: {
+    width: '100%',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    borderRadius: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   header: {
     flexDirection: 'row',
@@ -339,10 +343,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 16,
+    paddingBottom: 120,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E9ECEF',
     minHeight: 60,
+  },
+  inputContainerFocused: {
+    paddingBottom: 16, // Обычный padding когда фокус на инпуте
   },
   textInput: {
     flex: 1,

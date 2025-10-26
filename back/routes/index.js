@@ -290,4 +290,21 @@ router.post('/ai/contextual-suggestions', authMiddleware, aiController.getContex
 // Анализ предпочтений пользователя
 router.post('/ai/analyze-preferences', authMiddleware, aiController.analyzeUserPreferences)
 
+// ==================== AI Demo Routes (без аутентификации) ====================
+
+// Получить персональные рекомендации (демо)
+router.post('/ai/demo/recommendations', aiController.getPersonalRecommendations)
+
+// Создать маршрут с помощью AI (демо)
+router.post('/ai/demo/create-route', aiController.createAIRoute)
+
+// Отправить сообщение AI-помощнику (демо)
+router.post('/ai/demo/chat', aiController.sendMessage)
+
+// Получить контекстные предложения (демо)
+router.post('/ai/demo/contextual-suggestions', aiController.getContextualSuggestions)
+
+// Анализ предпочтений пользователя (демо)
+router.post('/ai/demo/analyze-preferences', aiController.analyzeUserPreferences)
+
 module.exports = router

@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 32,
+    paddingBottom: 152, // 32 (основной padding) + 120 (для навигационной панели)
     gap: 16,
     overflow: 'hidden',
   },

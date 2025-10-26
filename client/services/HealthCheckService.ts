@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL } from '@/constants/http';
+import { API_URL, initializeAPI } from '@/constants/http';
 
 export class HealthCheckService {
   private static checkInterval: NodeJS.Timeout | null = null;
@@ -9,15 +9,24 @@ export class HealthCheckService {
   // Проверка здоровья бекенда
   static async checkHealth(): Promise<boolean> {
     try {
-      const response = await axios.get(`${API_URL}/test`, {
+      // Убеждаемся, что API URL инициализирован
+      if (!API_URL.value) {
+        console.log('🔧 API URL не инициализирован, инициализируем...');
+        await initializeAPI();
+      }
+      
+      console.log('🔍 Проверяем здоровье бекенда на:', `${API_URL.value}/test`);
+      
+      const response = await axios.get(`${API_URL.value}/test`, {
         timeout: 5000,
         validateStatus: (status) => status === 200
       });
       
       this.isHealthy = response.data?.message === 'Backend is working!';
+      console.log('✅ Health check successful:', response.data);
       return this.isHealthy;
     } catch (error) {
-      console.error('Backend health check failed:', error);
+      console.error('❌ Backend health check failed:', error);
       this.isHealthy = false;
       return false;
     }
@@ -75,12 +84,22 @@ export class HealthCheckService {
   // Быстрая проверка (для инициализации)
   static async quickCheck(): Promise<boolean> {
     try {
-      const response = await axios.get(`${API_URL}/test`, {
+      // Убеждаемся, что API URL инициализирован
+      if (!API_URL.value) {
+        console.log('🔧 API URL не инициализирован в quickCheck, инициализируем...');
+        await initializeAPI();
+      }
+      
+      console.log('🔍 Быстрая проверка здоровья бекенда на:', `${API_URL.value}/test`);
+      
+      const response = await axios.get(`${API_URL.value}/test`, {
         timeout: 3000
       });
       this.isHealthy = response.data?.message === 'Backend is working!';
+      console.log('✅ Quick health check successful:', response.data);
       return this.isHealthy;
     } catch (error) {
+      console.error('❌ Quick health check failed:', error);
       this.isHealthy = false;
       return false;
     }

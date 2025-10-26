@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Route } from '../services/DirectionsService';
+import { POI } from '../types/poi';
 import WebMapView from './WebMapView';
 
 interface MapViewComponentProps {
@@ -16,6 +17,10 @@ interface MapViewComponentProps {
   route?: Route | null;
   children?: React.ReactNode;
   mapType?: 'standard' | 'satellite' | 'hybrid';
+  mapStyle?: string;
+  pois?: POI[];
+  selectedPOIs?: POI[];
+  onPOISelect?: (poi: POI) => void;
 }
 
 const MapViewComponent: React.FC<MapViewComponentProps> = ({
@@ -31,6 +36,10 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
   route,
   children,
   mapType = 'standard',
+  mapStyle = 'light',
+  pois = [],
+  selectedPOIs = [],
+  onPOISelect,
 }) => {
   return (
     <View style={[styles.container, style]}>
@@ -40,6 +49,9 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
         initialRegion={initialRegion}
         route={route}
         mapType={mapType}
+        pois={pois}
+        selectedPOIs={selectedPOIs}
+        onPOISelect={onPOISelect}
       >
         {children}
       </WebMapView>
