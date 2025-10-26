@@ -1,0 +1,61 @@
+services:
+  webapplication1:
+    image: ${DOCKER_REGISTRY-}webapplication1
+    build:
+      context: .
+      dockerfile: WebApplication1/Dockerfile
+    restart: always
+    environment:
+      - HashServiceUrl=http://hashservice
+    networks:
+      - apinet
+    depends_on:
+      - mysql
+      - hashservice
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+
+  hashservice:
+    image: ${DOCKER_REGISTRY-}hashservice
+    build:
+      context: .
+      dockerfile: HashService/Dockerfile
+    restart: always
+    networks:
+      - apinet
+    ports:
+      - "5000:80"
+
+  webapplication2:
+    image: ${DOCKER_REGISTRY-}webapplication2
+    build:
+      context: .
+      dockerfile: WebApplication2/WebApplication2/Dockerfile
+    restart: always
+    environment:
+      - ASPNETCORE_HTTP_PORTS=8080
+    networks:
+      - apinet
+    ports:
+      - "8082:8080"
+
+  mysql:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - apinet
+    ports:
+      - "3406:3306"
+
+volumes:
+  mysql-data:
+
+networks:
+  apinet:
+    driver: bridge

@@ -1,0 +1,6 @@
+@HashService_HostAddress = http://localhost:5186
+
+GET {{HashService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
