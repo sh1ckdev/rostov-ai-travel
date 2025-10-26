@@ -6,7 +6,7 @@ services:
       dockerfile: WebApplication1/Dockerfile
     restart: always
     environment:
-      - HashServiceUrl=http://hashservice:8081
+      - HashServiceUrl=http://hashservice:8083
       - ASPNETCORE_URLS=http://+:8080
     networks:
       - apinet
@@ -23,11 +23,11 @@ services:
       dockerfile: HashService/Dockerfile
     restart: always
     environment:
-      - ASPNETCORE_URLS=http://+:8081
+      - ASPNETCORE_URLS=http://+:8083
     networks:
       - apinet
     ports:
-      - "8081:8081"
+      - "8083:8083"
 
   webapplication2:
     image: ${DOCKER_REGISTRY-}webapplication2
