@@ -1,23 +1,25 @@
 import axios from 'axios';
-import { API_URL, initializeAPI } from '@/constants/http';
+import { API_URL } from '@/constants/http';
 
 export class HealthCheckService {
-  private static checkInterval: NodeJS.Timeout | null = null;
+  private static checkInterval: ReturnType<typeof setInterval> | null = null;
   private static isHealthy: boolean = false;
-  private static listeners: Array<(healthy: boolean) => void> = [];
+  private static listeners: ((healthy: boolean) => void)[] = [];
 
   // Проверка здоровья бекенда
   static async checkHealth(): Promise<boolean> {
     try {
-      // Убеждаемся, что API URL инициализирован
-      if (!API_URL.value) {
-        console.log('🔧 API URL не инициализирован, инициализируем...');
-        await initializeAPI();
+      const apiUrl = API_URL.value;
+      
+      if (!apiUrl || apiUrl.includes('undefined') || apiUrl === 'http://localhost:5000/api') {
+        console.warn('⚠️ API URL еще не готов, пропускаем проверку');
+        this.isHealthy = false;
+        return false;
       }
       
-      console.log('🔍 Проверяем здоровье бекенда на:', `${API_URL.value}/test`);
+      console.log('🔍 Проверяем здоровье бекенда на:', `${apiUrl}/test`);
       
-      const response = await axios.get(`${API_URL.value}/test`, {
+      const response = await axios.get(`${apiUrl}/test`, {
         timeout: 5000,
         validateStatus: (status) => status === 200
       });
@@ -25,8 +27,8 @@ export class HealthCheckService {
       this.isHealthy = response.data?.message === 'Backend is working!';
       console.log('✅ Health check successful:', response.data);
       return this.isHealthy;
-    } catch (error) {
-      console.error('❌ Backend health check failed:', error);
+    } catch (error: any) {
+      console.error('❌ Backend health check failed:', error.message || error);
       this.isHealthy = false;
       return false;
     }
@@ -84,22 +86,24 @@ export class HealthCheckService {
   // Быстрая проверка (для инициализации)
   static async quickCheck(): Promise<boolean> {
     try {
-      // Убеждаемся, что API URL инициализирован
-      if (!API_URL.value) {
-        console.log('🔧 API URL не инициализирован в quickCheck, инициализируем...');
-        await initializeAPI();
+      const apiUrl = API_URL.value;
+      
+      if (!apiUrl || apiUrl.includes('undefined')) {
+        console.warn('⚠️ API URL еще не готов для быстрой проверки');
+        this.isHealthy = false;
+        return false;
       }
       
-      console.log('🔍 Быстрая проверка здоровья бекенда на:', `${API_URL.value}/test`);
+      console.log('🔍 Быстрая проверка здоровья бекенда на:', `${apiUrl}/test`);
       
-      const response = await axios.get(`${API_URL.value}/test`, {
+      const response = await axios.get(`${apiUrl}/test`, {
         timeout: 3000
       });
       this.isHealthy = response.data?.message === 'Backend is working!';
       console.log('✅ Quick health check successful:', response.data);
       return this.isHealthy;
-    } catch (error) {
-      console.error('❌ Quick health check failed:', error);
+    } catch (error: any) {
+      console.error('❌ Quick health check failed:', error.message || error);
       this.isHealthy = false;
       return false;
     }

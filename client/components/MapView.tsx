@@ -49,6 +49,7 @@ const MapViewComponent: React.FC<MapViewComponentProps> = ({
         initialRegion={initialRegion}
         route={route}
         mapType={mapType}
+        mapStyle={mapStyle}
         pois={pois}
         selectedPOIs={selectedPOIs}
         onPOISelect={onPOISelect}

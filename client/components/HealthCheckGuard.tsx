@@ -49,12 +49,18 @@ export const HealthCheckGuard: React.FC<HealthCheckGuardProps> = ({ children }) 
     );
   }
 
-  // Показываем страницу техработ если бекенд недоступен
+  // ВРЕМЕННО: Позволяем приложению работать даже если бекенд недоступен
+  // TODO: Включить обратно после настройки сети
+  // if (!isHealthy) {
+  //   return <MaintenancePage onRetry={handleRetry} />;
+  // }
+
+  // Показываем приложение в любом случае
   if (!isHealthy) {
-    return <MaintenancePage onRetry={handleRetry} />;
+    console.warn('⚠️ Приложение запущено БЕЗ подключения к бекенду!');
+    console.warn('⚠️ Некоторые функции могут не работать');
   }
 
-  // Бекенд работает - показываем приложение
   return <>{children}</>;
 };
 

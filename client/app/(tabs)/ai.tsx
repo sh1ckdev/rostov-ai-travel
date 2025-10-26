@@ -8,10 +8,14 @@ import { authStore } from '../../stores/authStore';
 import AIAssistant from '@/components/AIAssistant';
 import AIRoutePlanner from '@/components/AIRoutePlanner';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/contexts/I18nContext';
 
 const AIScreen = observer(() => {
   const router = useRouter();
   const [showAssistant, setShowAssistant] = useState(true);
+  const { isDark } = useTheme();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!authStore.isAuth) {
@@ -52,24 +56,28 @@ const AIScreen = observer(() => {
   if (!authStore.isAuth) return null;
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-          <Text style={styles.title}>Ваш ассистент</Text>
+    <View style={[styles.container, { backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5' }]}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <View style={[styles.header, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
+          <Text style={[styles.title, { color: isDark ? '#ffffff' : '#333' }]}>{t('ai.title')}</Text>
         <View style={styles.segment}>
           <TouchableOpacity
-            style={[styles.segmentBtn, showAssistant && styles.segmentBtnActive]}
+            style={[styles.segmentBtn, { backgroundColor: isDark ? '#3a3a3a' : '#fff', borderColor: '#007AFF' }, showAssistant && styles.segmentBtnActive]}
             onPress={() => setShowAssistant(true)}
           >
             <IconSymbol name="text.bubble" size={16} color={showAssistant ? '#fff' : '#007AFF'} />
-            <Text style={[styles.segmentText, showAssistant && styles.segmentTextActive]}>Помощник</Text>
+            <Text style={[styles.segmentText, { color: showAssistant ? '#fff' : '#007AFF' }, showAssistant && styles.segmentTextActive]}>
+              {t('ai.title')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.segmentBtn, !showAssistant && styles.segmentBtnActive]}
+            style={[styles.segmentBtn, { backgroundColor: isDark ? '#3a3a3a' : '#fff', borderColor: '#007AFF' }, !showAssistant && styles.segmentBtnActive]}
             onPress={() => setShowAssistant(false)}
           >
             <IconSymbol name="sparkles" size={16} color={!showAssistant ? '#fff' : '#007AFF'} />
-            <Text style={[styles.segmentText, !showAssistant && styles.segmentTextActive]}>Планировщик</Text>
+            <Text style={[styles.segmentText, { color: !showAssistant ? '#fff' : '#007AFF' }, !showAssistant && styles.segmentTextActive]}>
+              {t('ai.planRoute')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -94,17 +102,16 @@ const AIScreen = observer(() => {
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1 },
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
   body: { flex: 1 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#333' },
+  title: { fontSize: 28, fontWeight: 'bold' },
   segment: { flexDirection: 'row', gap: 8, marginTop: 12 },
   segmentBtn: {
     flexDirection: 'row',
@@ -114,11 +121,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: '#fff',
   },
   segmentBtnActive: { backgroundColor: '#007AFF' },
-  segmentText: { color: '#007AFF', fontWeight: '600' },
+  segmentText: { fontWeight: '600' },
   segmentTextActive: { color: '#fff' },
   center: { flex: 1, alignItems: 'stretch', justifyContent: 'flex-start' },
   headerLeft: {

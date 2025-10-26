@@ -6,33 +6,37 @@ import { BlurView } from 'expo-blur';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import AuthGuard from '@/components/AuthGuard';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/contexts/I18nContext';
 
 export default function TabLayout() {
   const { width } = useWindowDimensions();
+  const { isDark } = useTheme();
+  const { t } = useI18n();
   
   return (
     <AuthGuard>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: '#FFFFFF',
-          tabBarInactiveTintColor: '#000000', // ИЗМЕНЕНО: Серый на черный
+          tabBarInactiveTintColor: isDark ? '#FFFFFF' : '#000000',
           headerShown: false,
           tabBarButton: HapticTab,
-          // Стили для текста вкладки, если он рендерится автоматически
           tabBarLabelStyle: {
-            fontSize: 12, // Размер шрифта для текста под иконкой
+            fontSize: 12,
             fontWeight: '600',
-            marginTop: 4, // Отступ между иконкой и текстом, если рендерится автоматически
+            marginTop: 2,
           },
           tabBarStyle: Platform.OS === 'ios' ? {
             position: 'absolute',
-            backgroundColor: 'transparent', // Фон панели вкладок прозрачный
+            backgroundColor: 'transparent',
             borderTopWidth: 0,
             elevation: 0,
             shadowOpacity: 0,
-            height: 90, // Увеличиваем высоту, чтобы было место для иконки И текста
-            paddingBottom: 20, // Регулируем paddingBottom
+            height: 80,
+            paddingBottom: 10,
             paddingTop: 10,
+            paddingHorizontal: 10,
             bottom: 25,
             marginHorizontal: 25,
             width: width - 50,
@@ -45,7 +49,7 @@ export default function TabLayout() {
             alignSelf: 'center',
           } : {
             position: 'absolute',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: isDark ? '#1a1a1a' : '#FFFFFF',
             borderTopWidth: 0,
             height: 85,
             paddingBottom: 25,
@@ -63,7 +67,7 @@ export default function TabLayout() {
             shadowOpacity: 0.25,
             shadowRadius: 25,
             borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.7)',
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.7)',
             alignSelf: 'center',
           },
           tabBarBackground: Platform.OS === 'ios' ? () => (
@@ -71,12 +75,11 @@ export default function TabLayout() {
               flex: 1, 
               overflow: 'hidden',
               borderRadius: 28,
-              // Убедимся, что фон заполняет всю область
-              backgroundColor: 'transparent', // Для обеспечения прозрачности, если ниже есть красный
+              backgroundColor: 'transparent',
             }}>
               <BlurView
                 intensity={20}
-                tint="extraLight"
+                tint={isDark ? "dark" : "extraLight"}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -126,11 +129,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            tabBarLabel: 'Главная', 
+            tabBarLabel: t('nav.home'), 
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
                 iconName={focused ? "house.fill" : "house"}
+                isDark={isDark}
               />
             ),
           }}
@@ -139,11 +143,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="ai"
           options={{
-            tabBarLabel: 'AI',
+            tabBarLabel: t('nav.ai'),
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
                 iconName={focused ? "brain.head.profile" : "brain.head.profile"}
+                isDark={isDark}
               />
             ),
           }}
@@ -152,11 +157,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="maps"
           options={{
-            tabBarLabel: 'Карты',
+            tabBarLabel: t('nav.maps'),
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
                 iconName={focused ? "location.fill" : "location"}
+                isDark={isDark}
               />
             ),
           }}
@@ -165,11 +171,12 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            tabBarLabel: 'Профиль',
+            tabBarLabel: t('nav.profile'),
             tabBarIcon: ({ focused }) => (
               <TabItem 
                 focused={focused}
                 iconName={focused ? "person.circle.fill" : "person.circle"}
+                isDark={isDark}
               />
             ),
           }}
@@ -179,21 +186,17 @@ export default function TabLayout() {
   );
 }
 
-// Изменяем TabItem, чтобы он не рендерил текст, если focused
-// Если вы хотите полный контроль над текстом, тогда:
-// 1. Удалите tabBarLabel из Tabs.Screen
-// 2. Верните Text в TabItem, но убедитесь, что его рендеринг корректен.
-const TabItem = ({ focused, iconName }: { // Убрал title из пропсов
+const TabItem = ({ focused, iconName, isDark }: {
   focused: boolean; 
   iconName: any;
+  isDark: boolean;
 }) => {
   return (
     <View style={{
       flex: 1, 
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 4, 
-      paddingHorizontal: 4,
+      paddingVertical: 10, 
     }}>
       {focused && (
         <View
@@ -204,7 +207,7 @@ const TabItem = ({ focused, iconName }: { // Убрал title из пропсо�
             left: -10,
             right: -10,
             backgroundColor: 'rgba(0, 122, 255, 0.85)',
-            borderRadius: 12,
+            borderRadius: 20,
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.4)',
             overflow: 'hidden',
@@ -235,21 +238,18 @@ const TabItem = ({ focused, iconName }: { // Убрал title из пропсо�
       )}
       
       <View style={{
-        flexDirection: 'column', // Иконка и текст в столбце
-        alignItems: 'center', // Выравнивание по центру по горизонтали
-        justifyContent: 'center', // Выравнивание по центру по вертикали
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 1,
         minWidth: 60, 
-        minHeight: 60, // Увеличиваем minHeight, чтобы вместить иконку и текст
+        minHeight: 60,
       }}>
         <IconSymbol 
-          size={focused ? 26 : 24} // Немного увеличим размер иконки
+          size={focused ? 26 : 24}
           name={iconName} 
-          color={focused ? '#FFFFFF' : '#000000'} // ИЗМЕНЕНО: Серый на черный
+          color={focused ? '#FFFFFF' : (isDark ? '#FFFFFF' : '#000000')}
           weight={focused ? 'bold' : 'regular'}
-          style={{
-            // Уберем marginBottom, так как Expo Router добавит свой marginTop к тексту
-          }}
         />
       </View>
     </View>

@@ -11,10 +11,14 @@ import { POI, POICategory, MapRegion } from '@/types/poi';
 import { Route } from '@/services/DirectionsService';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '@/constants/theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/contexts/I18nContext';
 
 const MapsScreen = observer(() => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { isDark } = useTheme();
+  const { t } = useI18n();
   const [pois, setPois] = useState<POI[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<POICategory | null>(null);
   const [selectedPOIs, setSelectedPOIs] = useState<POI[]>([]);
@@ -30,7 +34,26 @@ const MapsScreen = observer(() => {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapStyle, setMapStyle] = useState('light');
   
+  const getCategoryDisplayName = (category: POICategory): string => {
+    const categoryNames: Record<POICategory, string> = {
+      [POICategory.ATTRACTION]: t('maps.attractions'),
+      [POICategory.RESTAURANT]: t('maps.restaurants'),
+      [POICategory.HOTEL]: t('maps.hotels'),
+      [POICategory.SHOPPING]: t('maps.shopping'),
+      [POICategory.ENTERTAINMENT]: t('maps.entertainment'),
+      [POICategory.TRANSPORT]: t('maps.transport'),
+      [POICategory.HEALTH]: t('maps.health'),
+      [POICategory.EDUCATION]: t('maps.education'),
+      [POICategory.RELIGIOUS]: t('maps.religious'),
+      [POICategory.NATURE]: t('maps.nature'),
+      [POICategory.CULTURE]: t('maps.culture'),
+      [POICategory.SPORT]: t('maps.sport'),
+      [POICategory.OTHER]: t('maps.other'),
+    };
+    return categoryNames[category];
+  };
 
   useEffect(() => {
     if (!authStore.isAuth) {
@@ -38,7 +61,6 @@ const MapsScreen = observer(() => {
     }
   }, [router]);
 
-  // Фильтрация по категории (используется и из AI параметров)
   const handleCategoryFilter = async (category: POICategory | null) => {
     setSelectedCategory(category);
     try {
@@ -55,7 +77,6 @@ const MapsScreen = observer(() => {
     }
   };
 
-  // Загрузка POI
   const loadPOIs = useCallback(async () => {
     try {
       const loadLat = userLocation?.latitude || 47.2357;
@@ -88,7 +109,6 @@ const MapsScreen = observer(() => {
     }
   }, [userLocation]);
 
-  // Загрузка ближайших POI
   const loadNearbyPOIs = useCallback(async (latitude: number, longitude: number) => {
     try {
       const data = await MapService.getPOIsInRadius(latitude, longitude, 10000);
@@ -107,7 +127,6 @@ const MapsScreen = observer(() => {
     }
   }, [loadPOIs]);
 
-  // Получение геолокации пользователя
   const getUserLocation = useCallback(async () => {
     try {
       const location = await Location.getCurrentPositionAsync({
@@ -126,7 +145,6 @@ const MapsScreen = observer(() => {
     }
   }, [loadNearbyPOIs, loadPOIs]);
 
-  // Разрешения геолокации
   const requestLocationPermission = useCallback(async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -144,7 +162,6 @@ const MapsScreen = observer(() => {
     }
   }, [getUserLocation]);
 
-  // Обработка параметров из AI: category, selectedPOI, action, poiIds
   useEffect(() => {
     try {
       if (params?.category && typeof params.category === 'string') {
@@ -170,7 +187,6 @@ const MapsScreen = observer(() => {
         try {
           const list = typeof params.poiIds === 'string' ? JSON.parse(params.poiIds) : [];
           if (Array.isArray(list) && list.length > 0) {
-            // Загружаем POI и отмечаем их
             Promise.all(list.map((id: string) => MapService.getPOIById(id)))
               .then((loaded) => {
                 setSelectedPOIs(loaded);
@@ -205,7 +221,6 @@ const MapsScreen = observer(() => {
 
   const handleLocationSelect = (coordinate: { latitude: number; longitude: number }) => {
     console.log('Выбрана новая локация:', coordinate);
-    // Здесь можно добавить логику для добавления новой точки
   };
 
   const toggleMapType = () => {
@@ -230,6 +245,13 @@ const MapsScreen = observer(() => {
 
   const toggleUserLocation = () => {
     setShowUserLocation(!showUserLocation);
+  };
+
+  const toggleMapStyle = () => {
+    const styles = ['light', 'dark', 'voyager', 'positron', 'openstreet'];
+    const currentIndex = styles.indexOf(mapStyle);
+    const nextIndex = (currentIndex + 1) % styles.length;
+    setMapStyle(styles[nextIndex]);
   };
 
   const centerOnUser = async () => {
@@ -263,15 +285,21 @@ const MapsScreen = observer(() => {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5' }]} contentContainerStyle={styles.scrollContent}>
       {/* Заголовок */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Карты Ростова</Text>
-        <Text style={styles.headerSubtitle}>Исследуйте город с помощью интерактивных карт</Text>
+      <View style={[styles.header, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
+        <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>{t('maps.title')}</Text>
+        <Text style={[styles.headerSubtitle, { color: isDark ? '#cccccc' : '#666' }]}>Исследуйте город с помощью интерактивных карт</Text>
+        <View style={styles.mapStyleIndicator}>
+          <IconSymbol name="paintbrush" size={14} color="#007AFF" />
+          <Text style={[styles.mapStyleText, { color: isDark ? '#cccccc' : '#666' }]}>
+            {t('maps.style')}: {getMapStyleDisplayName(mapStyle)}
+          </Text>
+        </View>
       </View>
 
       {/* Панель управления картой */}
-      <View style={styles.controlsPanel}>
+      <View style={[styles.controlsPanel, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -281,15 +309,17 @@ const MapsScreen = observer(() => {
           <TouchableOpacity
             style={[
               styles.filterButton,
+              { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
               selectedCategory === null && styles.filterButtonActive
             ]}
             onPress={() => handleCategoryFilter(null)}
           >
             <Text style={[
               styles.filterButtonText,
+              { color: isDark ? '#ffffff' : '#666' },
               selectedCategory === null && styles.filterButtonTextActive
             ]}>
-              Все
+              {t('common.all')}
             </Text>
           </TouchableOpacity>
           
@@ -298,12 +328,14 @@ const MapsScreen = observer(() => {
               key={category}
               style={[
                 styles.filterButton,
+                { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
                 selectedCategory === category && styles.filterButtonActive
               ]}
               onPress={() => handleCategoryFilter(category)}
             >
               <Text style={[
                 styles.filterButtonText,
+                { color: isDark ? '#ffffff' : '#666' },
                 selectedCategory === category && styles.filterButtonTextActive
               ]}>
                 {getCategoryDisplayName(category)}
@@ -315,7 +347,7 @@ const MapsScreen = observer(() => {
         {/* Кнопки управления картой */}
         <View style={styles.mapControls}>
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
             onPress={toggleMapType}
           >
             <IconSymbol 
@@ -326,7 +358,7 @@ const MapsScreen = observer(() => {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
             onPress={toggleUserLocation}
           >
             <IconSymbol 
@@ -337,7 +369,7 @@ const MapsScreen = observer(() => {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
             onPress={centerOnUser}
           >
             <IconSymbol 
@@ -348,7 +380,18 @@ const MapsScreen = observer(() => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
+            onPress={toggleMapStyle}
+          >
+            <IconSymbol 
+              name="paintbrush" 
+              size={20} 
+              color="#007AFF" 
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
             onPress={() => setIsFullscreen(true)}
           >
             <IconSymbol 
@@ -370,6 +413,7 @@ const MapsScreen = observer(() => {
           showUserLocation={showUserLocation}
           route={currentRoute}
           mapType={mapType}
+          mapStyle={mapStyle}
           pois={pois}
           selectedPOIs={selectedPOIs}
           onPOISelect={handlePOIToggle}
@@ -385,7 +429,6 @@ const MapsScreen = observer(() => {
         <View style={styles.fullscreenContainer}>
           {/* Заголовок полного экрана */}
           <View style={styles.fullscreenHeader}>
-            <Text style={styles.fullscreenTitle}>Карта Ростова</Text>
             <TouchableOpacity
               style={styles.fullscreenCloseButton}
               onPress={() => setIsFullscreen(false)}
@@ -395,7 +438,7 @@ const MapsScreen = observer(() => {
           </View>
 
           {/* Панель управления в полном экране */}
-          <View style={styles.fullscreenControls}>
+          <View style={[styles.fullscreenControls, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -405,15 +448,17 @@ const MapsScreen = observer(() => {
               <TouchableOpacity
                 style={[
                   styles.filterButton,
+                  { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
                   selectedCategory === null && styles.filterButtonActive
                 ]}
                 onPress={() => handleCategoryFilter(null)}
               >
                 <Text style={[
                   styles.filterButtonText,
+                  { color: isDark ? '#ffffff' : '#666' },
                   selectedCategory === null && styles.filterButtonTextActive
                 ]}>
-                  Все
+                  {t('common.all')}
                 </Text>
               </TouchableOpacity>
               
@@ -422,12 +467,14 @@ const MapsScreen = observer(() => {
                   key={category}
                   style={[
                     styles.filterButton,
+                    { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
                     selectedCategory === category && styles.filterButtonActive
                   ]}
                   onPress={() => handleCategoryFilter(category)}
                 >
                   <Text style={[
                     styles.filterButtonText,
+                    { color: isDark ? '#ffffff' : '#666' },
                     selectedCategory === category && styles.filterButtonTextActive
                   ]}>
                     {getCategoryDisplayName(category)}
@@ -439,7 +486,7 @@ const MapsScreen = observer(() => {
             {/* Кнопки управления картой в полном экране */}
             <View style={styles.mapControls}>
               <TouchableOpacity
-                style={styles.controlButton}
+                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
                 onPress={toggleMapType}
               >
                 <IconSymbol 
@@ -450,7 +497,7 @@ const MapsScreen = observer(() => {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={styles.controlButton}
+                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
                 onPress={toggleUserLocation}
               >
                 <IconSymbol 
@@ -461,11 +508,22 @@ const MapsScreen = observer(() => {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={styles.controlButton}
+                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
                 onPress={centerOnUser}
               >
                 <IconSymbol 
                   name="location.circle" 
+                  size={20} 
+                  color="#007AFF" 
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
+                onPress={toggleMapStyle}
+              >
+                <IconSymbol 
+                  name="paintbrush" 
                   size={20} 
                   color="#007AFF" 
                 />
@@ -482,6 +540,7 @@ const MapsScreen = observer(() => {
               showUserLocation={showUserLocation}
               route={currentRoute}
               mapType={mapType}
+              mapStyle={mapStyle}
               pois={pois}
               selectedPOIs={selectedPOIs}
               onPOISelect={handlePOIToggle}
@@ -493,7 +552,6 @@ const MapsScreen = observer(() => {
   );
 });
 
-// Функция для получения отображаемого названия категории
 const getCategoryDisplayName = (category: POICategory): string => {
   const categoryNames: Record<POICategory, string> = {
     [POICategory.ATTRACTION]: 'Достопримечательности',
@@ -511,6 +569,17 @@ const getCategoryDisplayName = (category: POICategory): string => {
     [POICategory.OTHER]: 'Другое',
   };
   return categoryNames[category];
+};
+
+const getMapStyleDisplayName = (style: string): string => {
+  const styleNames: Record<string, string> = {
+    'light': 'Светлая',
+    'dark': 'Темная',
+    'voyager': 'Путешественник',
+    'positron': 'Минимализм',
+    'openstreet': 'OpenStreet',
+  };
+  return styleNames[style] || 'Светлая';
 };
 
 const styles = StyleSheet.create({
@@ -547,6 +616,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 4,
+  },
+  mapStyleIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  mapStyleText: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginLeft: 6,
+    fontWeight: '500',
   },
   controlsPanel: {
     backgroundColor: '#FFFFFF',
@@ -602,7 +687,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F8F9FA',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -625,7 +709,6 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  // Стили для полного экрана
   fullscreenContainer: {
     flex: 1,
     backgroundColor: '#F5F5F5',
@@ -637,7 +720,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 15,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#fff',
   },
   fullscreenTitle: {
     fontSize: 20,
@@ -649,7 +732,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },

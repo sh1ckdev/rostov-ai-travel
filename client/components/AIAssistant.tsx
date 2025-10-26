@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { IconSymbol } from './ui/icon-symbol';
 import { AIService, ChatMessage, AIRecommendation } from '../services/AIService';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useI18n } from '@/contexts/I18nContext';
 
 interface AIAssistantProps {
   onRecommendationPress?: (recommendation: AIRecommendation) => void;
@@ -16,6 +18,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
   onClose,
   fullScreen = false,
 }) => {
+  const { isDark } = useTheme();
+  const { t } = useI18n();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -24,11 +28,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
   const textInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    // Добавляем приветственное сообщение
     const welcomeMessage: ChatMessage = {
       id: '1',
       role: 'assistant',
-      content: 'Привет! Я ваш универсальный AI-помощник. Могу помочь с любыми вопросами - от туризма и карт до общих тем. Чем могу помочь?',
+      content: t('ai.placeholder'),
       timestamp: new Date(),
       suggestions: [
         {
@@ -61,7 +64,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
       ]
     };
     setMessages([welcomeMessage]);
-  }, []);
+  }, [t]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -75,7 +78,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
-    Keyboard.dismiss(); // Убираем клавиатуру после отправки
+    Keyboard.dismiss();
     setIsLoading(true);
 
     try {
@@ -121,18 +124,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
   return (
     <KeyboardAvoidingView 
-      style={[styles.container, fullScreen && styles.containerFull]}
+      style={[
+        styles.container, 
+        fullScreen && styles.containerFull,
+        { backgroundColor: isDark ? '#1a1a1a' : '#F8F9FA' }
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 150 : 140}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF', borderBottomColor: isDark ? '#3a3a3a' : '#E9ECEF' }]}>
         <View style={styles.headerLeft}>
           <IconSymbol name="brain.head.profile" size={24} color="#007AFF" />
-          <Text style={styles.headerTitle}>AI-Помощник</Text>
+          <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>{t('ai.title')}</Text>
         </View>
         {onClose && (
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <IconSymbol name="xmark" size={20} color="#666" />
+          <TouchableOpacity style={[styles.closeButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]} onPress={onClose}>
+            <IconSymbol name="xmark" size={20} color={isDark ? '#ffffff' : '#666'} />
           </TouchableOpacity>
         )}
       </View>
@@ -184,28 +191,36 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
         )}
       </ScrollView>
 
-      <View style={[styles.inputContainer, isInputFocused && styles.inputContainerFocused]}>
+      <View style={[
+        styles.inputContainer, 
+        isInputFocused && styles.inputContainerFocused,
+        { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF', borderColor: isDark ? '#3a3a3a' : '#E9ECEF' }
+      ]}>
         <TextInput
           ref={textInputRef}
-          style={styles.textInput}
+          style={[styles.textInput, { color: isDark ? '#ffffff' : '#000000' }]}
           value={inputText}
           onChangeText={setInputText}
-          placeholder="Напишите ваш вопрос..."
-          placeholderTextColor="#999"
+          placeholder={t('ai.placeholder')}
+          placeholderTextColor={isDark ? '#999' : '#999'}
           multiline
           maxLength={500}
           onFocus={() => setIsInputFocused(true)}
           onBlur={() => setIsInputFocused(false)}
         />
         <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton, 
+            { backgroundColor: isDark ? '#3a3a3a' : '#007AFF' },
+            (!inputText.trim() || isLoading) && styles.sendButtonDisabled
+          ]}
           onPress={sendMessage}
           disabled={!inputText.trim() || isLoading}
         >
           <IconSymbol 
             name="paperplane.fill" 
             size={20} 
-            color={(!inputText.trim() || isLoading) ? "#999" : "#FFFFFF"} 
+            color={(!inputText.trim() || isLoading) ? "#999" : (isDark ? "#ffffff" : "#FFFFFF")} 
           />
         </TouchableOpacity>
       </View>
@@ -216,7 +231,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
   },
   containerFull: {
     width: '100%',
@@ -231,9 +245,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E9ECEF',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -243,14 +255,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginLeft: 8,
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F8F9FA',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -344,13 +354,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: 16,
     paddingBottom: 120,
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E9ECEF',
     minHeight: 60,
   },
   inputContainerFocused: {
-    paddingBottom: 16, // Обычный padding когда фокус на инпуте
+    paddingBottom: 16,
   },
   textInput: {
     flex: 1,
@@ -360,7 +368,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#333',
     backgroundColor: '#F8F9FA',
     maxHeight: 100,
     minHeight: 40,
@@ -370,7 +377,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
