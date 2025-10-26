@@ -48,6 +48,7 @@ services:
       MARIADB_DATABASE: db
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./main.sql:/docker-entrypoint-initdb.d/main.sql:ro
     networks:
       - apinet
     ports:
