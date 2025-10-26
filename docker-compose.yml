@@ -11,8 +11,9 @@ services:
     networks:
       - apinet
     depends_on:
-      - mysql
-      - hashservice
+      mysql:
+        condition: service_healthy
+      hashservice:
     ports:
       - "0.0.0.0:8080:8080"
 
@@ -48,11 +49,36 @@ services:
       MARIADB_DATABASE: db
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./main.sql:/docker-entrypoint-initdb.d/main.sql:ro
     networks:
       - apinet
     ports:
       - "0.0.0.0:3406:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  db-init:
+    image: mariadb:10.11
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >
+      sh -c "
+        until mysql -h mysql -uroot -proot -e 'SELECT 1' > /dev/null 2>&1; do
+          echo 'Waiting for MySQL to be ready...'
+          sleep 2
+        done
+        echo 'MySQL is ready, applying schema...'
+        mysql -h mysql -uroot -proot db < /data/main.sql
+        echo 'Schema applied successfully!'
+      "
+    volumes:
+      - ./main.sql:/data/main.sql:ro
+    networks:
+      - apinet
+    restart: "no"
 
 volumes:
   mysql-data:
