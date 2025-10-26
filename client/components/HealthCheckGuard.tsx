@@ -8,26 +8,36 @@ interface HealthCheckGuardProps {
 }
 
 export const HealthCheckGuard: React.FC<HealthCheckGuardProps> = ({ children }) => {
-  const [isChecking, setIsChecking] = useState(true);
-  const [isHealthy, setIsHealthy] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isHealthy, setIsHealthy] = useState(true); // По умолчанию считаем что все ок
 
   useEffect(() => {
-    // Первоначальная проверка
-    checkBackendHealth();
+    // Запускаем проверку здоровья в фоне без блокировки UI
+    checkBackendHealthSilently();
 
     // Подписываемся на изменения статуса
     const unsubscribe = HealthCheckService.subscribe((healthy) => {
       setIsHealthy(healthy);
     });
 
-    // Запускаем мониторинг
-    HealthCheckService.startMonitoring(30000); // Каждые 30 секунд
+    // Запускаем мониторинг с увеличенным интервалом
+    HealthCheckService.startMonitoring(60000); // Каждые 60 секунд
 
     return () => {
       unsubscribe();
       HealthCheckService.stopMonitoring();
     };
   }, []);
+
+  const checkBackendHealthSilently = async () => {
+    // Проверяем без показа загрузки
+    const healthy = await HealthCheckService.quickCheck();
+    setIsHealthy(healthy);
+    
+    if (!healthy) {
+      console.log('ℹ️ Backend недоступен, но приложение продолжит работу');
+    }
+  };
 
   const checkBackendHealth = async () => {
     setIsChecking(true);
@@ -40,27 +50,8 @@ export const HealthCheckGuard: React.FC<HealthCheckGuardProps> = ({ children }) 
     checkBackendHealth();
   };
 
-  // Показываем загрузку при первой проверке
-  if (isChecking) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
-  // ВРЕМЕННО: Позволяем приложению работать даже если бекенд недоступен
-  // TODO: Включить обратно после настройки сети
-  // if (!isHealthy) {
-  //   return <MaintenancePage onRetry={handleRetry} />;
-  // }
-
-  // Показываем приложение в любом случае
-  if (!isHealthy) {
-    console.warn('⚠️ Приложение запущено БЕЗ подключения к бекенду!');
-    console.warn('⚠️ Некоторые функции могут не работать');
-  }
-
+  // Не блокируем UI при проверке
+  // Приложение работает в любом случае
   return <>{children}</>;
 };
 

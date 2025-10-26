@@ -14,7 +14,10 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Это приложение использует ваше местоположение для отображения ближайших достопримечательностей и построения маршрутов.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Это приложение использует ваше местоположение для отображения ближайших достопримечательностей и построения маршрутов.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
@@ -31,8 +34,10 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
-      ]
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.INTERNET"
+      ],
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

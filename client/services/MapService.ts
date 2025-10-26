@@ -847,61 +847,33 @@ export class MapService {
     minPrice?: number;
   }): Promise<any[]> {
     try {
-      // Используем API вместо статических данных
-      const HotelService = (await import('./HotelService')).default;
+      // Используем хардкод данные отелей для демонстрации
+      console.log('🏨 Загрузка хардкод данных отелей...');
+      const { getHotelsInRadius, getHotelsByFilters } = await import('../data/hotels');
       
-      // Строим фильтры для API
-      const filters: string[] = [];
-      
-      if (params?.minRating) {
-        filters.push(`rating:>=${params.minRating}`);
-      }
-      
-      if (params?.minPrice !== undefined) {
-        filters.push(`cost:>=${params.minPrice}`);
-      }
-      
-      if (params?.maxPrice !== undefined) {
-        filters.push(`cost:<=${params.maxPrice}`);
-      }
+      let hotels = getHotelsInRadius(
+        params?.latitude || 47.2357,
+        params?.longitude || 39.7125,
+        (params?.radius || 10000) / 1000 // Конвертируем в км
+      );
 
-      // Получаем отели через API
-      const response = await HotelService.getHotels({
-        Filters: filters.join(','),
-        Page: 1,
-        PageSize: 100, // Получаем больше отелей для карты
-        Sorts: 'rating:desc'
-      });
-
-      let hotels = response.data.data || [];
-
-      // Фильтрация по местоположению (если API не поддерживает геофильтры)
-      if (params?.latitude && params?.longitude && params?.radius) {
-        hotels = hotels.filter((hotel: any) => {
-          // Предполагаем, что у отеля есть координаты в адресе или отдельном поле
-          // Если нет координат, используем все отели
-          if (!hotel.latitude || !hotel.longitude) {
-            return true; // Показываем все отели без координат
-          }
-          
-          const distance = MapService.calculateDistance(
-            params.latitude!,
-            params.longitude!,
-            hotel.latitude,
-            hotel.longitude
-          );
-          return distance <= (params.radius! / 1000); // Конвертируем в км
+      // Применяем дополнительные фильтры
+      if (params?.minPrice || params?.maxPrice || params?.minRating) {
+        hotels = getHotelsByFilters({
+          minPrice: params.minPrice,
+          maxPrice: params.maxPrice,
+          minRating: params.minRating
         });
       }
 
-      // Преобразуем данные API в формат для карты
-      const transformedHotels = hotels.map((hotel: any) => MapService.transformApiHotelForMap(hotel));
-
-      console.log(`Загружено ${transformedHotels.length} отелей для карты из API`);
-      return transformedHotels;
+      console.log(`✅ Загружено ${hotels.length} отелей для карты из хардкод данных`);
+      return hotels;
     } catch (error) {
-      console.error('Ошибка загрузки отелей для карты:', error);
-      console.error('Ошибка загрузки отелей из API:', error);
+      console.error('❌ Ошибка загрузки хардкод данных отелей:', error);
+      
+      // Возвращаем пустой массив вместо fallback на API
+      console.warn('⚠️ Возвращаем пустой массив отелей');
+      return [];
     }
   }
 
@@ -914,14 +886,14 @@ export class MapService {
     radius: number = 5000
   ): Promise<any[]> {
     try {
-      // Используем API для получения отелей
+      // Используем хардкод данные отелей
       const hotels = await MapService.getHotelsForMap({
         latitude,
         longitude,
         radius
       });
       
-      console.log(`Найдено ${hotels.length} отелей поблизости из API`);
+      console.log(`Найдено ${hotels.length} отелей поблизости из хардкод данных`);
       return hotels;
     } catch (error) {
       console.error('Ошибка поиска ближайших отелей:', error);
@@ -934,17 +906,16 @@ export class MapService {
    */
   static async searchHotelsOnMap(query: string): Promise<any[]> {
     try {
-      // Используем API для поиска отелей
-      const HotelService = (await import('./HotelService')).default;
-      const response = await HotelService.searchHotels({ query });
+      // Используем хардкод данные отелей для поиска
+      console.log('🔍 Поиск отелей в хардкод данных:', query);
+      const { searchHotels } = await import('../data/hotels');
+      const hotels = searchHotels(query);
       
-      const hotels = response.data || [];
-      const transformedHotels = hotels.map((hotel: any) => MapService.transformApiHotelForMap(hotel));
-      
-      console.log(`Найдено ${transformedHotels.length} отелей по запросу "${query}" из API`);
-      return transformedHotels;
+      console.log(`✅ Найдено ${hotels.length} отелей по запросу "${query}" из хардкод данных`);
+      return hotels;
     } catch (error) {
-      console.error('Ошибка поиска отелей:', error);
+      console.error('❌ Ошибка поиска отелей:', error);
+      console.warn('⚠️ Возвращаем пустой массив отелей');
       return [];
     }
   }
@@ -957,13 +928,13 @@ export class MapService {
     maxPrice: number
   ): Promise<any[]> {
     try {
-      // Используем API с фильтрами по цене
+      // Используем хардкод данные с фильтрами по цене
       const hotels = await MapService.getHotelsForMap({
         minPrice,
         maxPrice
       });
       
-      console.log(`Найдено ${hotels.length} отелей в диапазоне цен ${minPrice}-${maxPrice} из API`);
+      console.log(`Найдено ${hotels.length} отелей в диапазоне цен ${minPrice}-${maxPrice} из хардкод данных`);
       return hotels;
     } catch (error) {
       console.error('Ошибка поиска отелей по цене:', error);
@@ -976,12 +947,12 @@ export class MapService {
    */
   static async getHotelsByRatingOnMap(minRating: number): Promise<any[]> {
     try {
-      // Используем API с фильтром по рейтингу
+      // Используем хардкод данные с фильтром по рейтингу
       const hotels = await MapService.getHotelsForMap({
         minRating
       });
       
-      console.log(`Найдено ${hotels.length} отелей с рейтингом от ${minRating} из API`);
+      console.log(`Найдено ${hotels.length} отелей с рейтингом от ${minRating} из хардкод данных`);
       return hotels;
     } catch (error) {
       console.error('Ошибка поиска отелей по рейтингу:', error);

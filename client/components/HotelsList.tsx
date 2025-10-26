@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,28 +34,7 @@ const HotelsList: React.FC<HotelsListProps> = ({
   const [minRating, setMinRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
-    initializeHotels();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [hotels, searchQuery, selectedFilter, minRating, maxPrice]);
-
-  const initializeHotels = async () => {
-    try {
-      // Получаем координаты пользователя с fallback
-      const userCoords = await MapService.getUserLocation();
-      await loadHotels(userCoords);
-    } catch (error) {
-      console.error('Ошибка инициализации отелей:', error);
-      // Используем координаты по умолчанию
-      const defaultCoords = GeolocationService.getDefaultCoordinates();
-      await loadHotels(defaultCoords);
-    }
-  };
-
-  const loadHotels = async (coords?: { latitude: number; longitude: number }) => {
+  const loadHotels = useCallback(async (coords?: { latitude: number; longitude: number }) => {
     try {
       setLoading(true);
       const coordinates = coords || userLocation || GeolocationService.getDefaultCoordinates();
@@ -72,9 +51,22 @@ const HotelsList: React.FC<HotelsListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userLocation]);
 
-  const applyFilters = () => {
+  const initializeHotels = useCallback(async () => {
+    try {
+      // Получаем координаты пользователя с fallback
+      const userCoords = await MapService.getUserLocation();
+      await loadHotels(userCoords);
+    } catch (error) {
+      console.error('Ошибка инициализации отелей:', error);
+      // Используем координаты по умолчанию
+      const defaultCoords = GeolocationService.getDefaultCoordinates();
+      await loadHotels(defaultCoords);
+    }
+  }, [loadHotels]);
+
+  const applyFilters = useCallback(() => {
     let result = [...hotels];
 
     // Поиск по запросу
@@ -112,14 +104,14 @@ const HotelsList: React.FC<HotelsListProps> = ({
             const distA = MapService.calculateDistance(
               userLocation.latitude,
               userLocation.longitude,
-              a.coordinates?.latitude || a.latitude || 0,
-              a.coordinates?.longitude || a.longitude || 0
+              a.latitude || 0,
+              a.longitude || 0
             );
             const distB = MapService.calculateDistance(
               userLocation.latitude,
               userLocation.longitude,
-              b.coordinates?.latitude || b.latitude || 0,
-              b.coordinates?.longitude || b.longitude || 0
+              b.latitude || 0,
+              b.longitude || 0
             );
             return distA - distB;
           });
@@ -128,7 +120,15 @@ const HotelsList: React.FC<HotelsListProps> = ({
     }
 
     setFilteredHotels(result);
-  };
+  }, [hotels, searchQuery, selectedFilter, minRating, maxPrice, userLocation]);
+
+  useEffect(() => {
+    initializeHotels();
+  }, [initializeHotels]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const renderFilterButton = (
     filter: 'all' | 'nearby' | 'rating' | 'price',
@@ -140,7 +140,7 @@ const HotelsList: React.FC<HotelsListProps> = ({
       onPress={() => setSelectedFilter(filter)}
     >
       <IconSymbol
-        name={icon}
+        name={icon as any}
         size={16}
         color={selectedFilter === filter ? '#FFFFFF' : '#666'}
       />
@@ -211,7 +211,7 @@ const HotelsList: React.FC<HotelsListProps> = ({
                 { text: 'Отмена', style: 'cancel' },
                 {
                   text: 'OK',
-                  onPress: (text) => {
+                  onPress: (text?: string) => {
                     const rating = parseFloat(text || '0');
                     if (!isNaN(rating) && rating >= 0 && rating <= 5) {
                       setMinRating(rating);
@@ -240,7 +240,7 @@ const HotelsList: React.FC<HotelsListProps> = ({
                 { text: 'Отмена', style: 'cancel' },
                 {
                   text: 'OK',
-                  onPress: (text) => {
+                  onPress: (text?: string) => {
                     const price = parseFloat(text || '0');
                     if (!isNaN(price) && price > 0) {
                       setMaxPrice(price);
@@ -281,7 +281,7 @@ const HotelsList: React.FC<HotelsListProps> = ({
       <FlatList
         data={filteredHotels}
         renderItem={renderHotelItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item, index) => `hotel-${item.id}-${index}`}
         contentContainerStyle={styles.listContainer}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={

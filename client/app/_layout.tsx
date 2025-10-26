@@ -14,6 +14,23 @@ import { initializeAPI } from '@/constants/http';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { I18nProvider } from '@/contexts/I18nContext';
 
+// Глобальный обработчик необработанных промисов
+const originalHandler = ErrorUtils.getGlobalHandler();
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  // Игнорируем ошибки авторизации (они обрабатываются в interceptor)
+  if (error?.name === 'AuthenticationError' || error?.message?.includes('401')) {
+    console.warn('⚠️ Ошибка авторизации обработана глобально');
+    return;
+  }
+  
+  // Для остальных ошибок вызываем оригинальный обработчик
+  if (originalHandler) {
+    originalHandler(error, isFatal);
+  } else {
+    console.error('❌ Необработанная ошибка:', error);
+  }
+});
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -25,18 +42,14 @@ const RootLayoutContent = observer(() => {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Начинаем инициализацию приложения...');
-        
         // Сначала инициализируем API URL
         await initializeAPI();
-        console.log('✅ API URL успешно инициализирован');
         
         // Отмечаем что API готов
         setIsAPIInitialized(true);
         
         // Затем проверяем аутентификацию
         await authStore.checkAuth();
-        console.log('✅ Проверка аутентификации завершена');
       } catch (error) {
         console.error('❌ Ошибка инициализации приложения:', error);
         authStore.setInitialized(true);

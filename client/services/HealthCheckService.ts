@@ -12,26 +12,35 @@ export class HealthCheckService {
       const apiUrl = API_URL.value;
       
       if (!apiUrl || apiUrl.includes('undefined')) {
-        console.warn('⚠️ API URL еще не готов, пропускаем проверку');
         this.isHealthy = false;
         return false;
       }
       
       // Используем эндпоинт Health для проверки здоровья
-      console.log('🔍 Проверяем здоровье бекенда на:', `${apiUrl}/Health`);
-      
       const response = await axios.get(`${apiUrl}/Health`, {
         timeout: 5000,
         validateStatus: (status) => status === 200
       });
       
       // Проверяем, что получили объект с status: "healthy"
+      const wasHealthy = this.isHealthy;
       this.isHealthy = response.data && response.data.status === 'healthy';
-      console.log('✅ Health check successful:', this.isHealthy ? 'Backend is working!' : 'Unexpected response format');
+      
+      // Логируем только при изменении статуса
+      if (wasHealthy !== this.isHealthy) {
+        console.log(this.isHealthy ? '✅ Backend подключен' : '⚠️ Backend недоступен');
+      }
+      
       return this.isHealthy;
-    } catch (error: any) {
-      console.error('❌ Backend health check failed:', error.message || error);
+    } catch {
+      const wasHealthy = this.isHealthy;
       this.isHealthy = false;
+      
+      // Логируем только при изменении статуса
+      if (wasHealthy !== this.isHealthy) {
+        console.log('⚠️ Backend недоступен');
+      }
+      
       return false;
     }
   }
@@ -42,25 +51,19 @@ export class HealthCheckService {
       const apiUrl = API_URL.value;
       
       if (!apiUrl || apiUrl.includes('undefined')) {
-        console.warn('⚠️ API URL еще не готов, пропускаем проверку');
         return false;
       }
-      
-      console.log('🔍 Проверяем здоровье бекенда (с auth):', `${apiUrl}/Auth/check`);
       
       await axios.get(`${apiUrl}/Auth/check`, {
         timeout: 5000
       });
       
-      console.log('✅ Auth health check successful');
       return true;
     } catch (error: any) {
       // Даже если 401/403, сервер работает
       if (error.response && [401, 403].includes(error.response.status)) {
-        console.log('✅ Backend is running (auth required)');
         return true;
       }
-      console.error('❌ Auth health check failed:', error.message || error);
       return false;
     }
   }
@@ -120,14 +123,11 @@ export class HealthCheckService {
       const apiUrl = API_URL.value;
       
       if (!apiUrl || apiUrl.includes('undefined')) {
-        console.warn('⚠️ API URL еще не готов для быстрой проверки');
         this.isHealthy = false;
         return false;
       }
       
       // Используем эндпоинт Health для быстрой проверки
-      console.log('🔍 Быстрая проверка здоровья бекенда на:', `${apiUrl}/Health`);
-      
       const response = await axios.get(`${apiUrl}/Health`, {
         timeout: 3000,
         validateStatus: (status) => status === 200
@@ -135,10 +135,13 @@ export class HealthCheckService {
       
       // Проверяем, что получили объект с status: "healthy"
       this.isHealthy = response.data && response.data.status === 'healthy';
-      console.log('✅ Quick health check successful:', this.isHealthy ? 'Backend is working!' : 'Unexpected response format');
+      
+      if (this.isHealthy) {
+        console.log('✅ Backend подключен');
+      }
+      
       return this.isHealthy;
-    } catch (error: any) {
-      console.error('❌ Quick health check failed:', error.message || error);
+    } catch {
       this.isHealthy = false;
       return false;
     }

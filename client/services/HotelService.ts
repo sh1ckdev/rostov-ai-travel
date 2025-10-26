@@ -140,7 +140,8 @@ export default class HotelService {
    * Получение отелей с высоким рейтингом
    */
   static getTopRatedHotels(params?: HotelsQueryParams) {
-    const sorts = params?.Sorts ? `${params.Sorts},rating:desc` : 'rating:desc';
+    // Убираем сортировку по rating, т.к. этого поля нет в БД
+    const sorts = params?.Sorts ? params.Sorts : 'Name:asc'; // Name с заглавной буквы
     return this.getHotels({ ...params, Sorts: sorts });
   }
 
