@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sieve.Models;
 using Sieve.Services;
-using System.Linq.Expressions;
 using WebApplication1.DTOs;
 using WebApplication1.Models;
 using Hotel = WebApplication1.Models.Hotel;
@@ -29,7 +28,7 @@ namespace WebApplication1.Services
         private readonly ILogger<HotelService> _logger;
         private readonly ISieveProcessor _sieveProcessor;
         
-        private static readonly Expression<Func<Hotel, HotelDto>> MapToDto = h => new HotelDto
+        private static readonly Func<Hotel, HotelDto> MapToDto = h => new()
         {
             Id = h.Id,
             Name = h.Name,
@@ -49,12 +48,12 @@ namespace WebApplication1.Services
         {
             var query = _context.Hotels.AsQueryable();
             var totalCount = await _sieveProcessor.Apply(sieveModel, query, applyPagination: false).CountAsync();
-            var hotels = await _sieveProcessor.Apply(sieveModel, query).Select(MapToDto).ToListAsync();
+            var hotels = await _sieveProcessor.Apply(sieveModel, query).Select(h => MapToDto(h)).ToListAsync();
             return (hotels, totalCount);
         }
 
         public async Task<HotelDto?> GetHotelByIdAsync(int id) =>
-            await _context.Hotels.Where(h => h.Id == id).Select(MapToDto).FirstOrDefaultAsync();
+            await _context.Hotels.Where(h => h.Id == id).Select(h => MapToDto(h)).FirstOrDefaultAsync();
 
         public async Task<HotelDto> CreateHotelAsync(CreateHotelDto dto)
         {
@@ -106,7 +105,7 @@ namespace WebApplication1.Services
         public async Task<IEnumerable<HotelDto>> SearchHotelsAsync(string searchTerm) =>
             await _context.Hotels
                 .Where(h => h.Name.Contains(searchTerm) || (h.Description != null && h.Description.Contains(searchTerm)))
-                .Select(MapToDto)
+                .Select(h => MapToDto(h))
                 .ToListAsync();
 
         public async Task<IEnumerable<HotelReviewDto>> GetHotelReviewsAsync(int hotelId)

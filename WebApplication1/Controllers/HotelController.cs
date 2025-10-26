@@ -20,30 +20,19 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetHotels([FromQuery] SieveModel sieveModel)
         {
-            try
+            var (hotels, totalCount) = await _hotelService.GetHotelsAsync(sieveModel);
+            
+            var pageSize = sieveModel.PageSize ?? 10;
+            var page = sieveModel.Page ?? 1;
+            
+            return Ok(new
             {
-                _logger.LogInformation("Запрос списка отелей: Page={Page}, PageSize={PageSize}, Filters={Filters}, Sorts={Sorts}", 
-                    sieveModel.Page, sieveModel.PageSize, sieveModel.Filters, sieveModel.Sorts);
-                
-                var (hotels, totalCount) = await _hotelService.GetHotelsAsync(sieveModel);
-                
-                var pageSize = sieveModel.PageSize ?? 10;
-                var page = sieveModel.Page ?? 1;
-                
-                return Ok(new
-                {
-                    data = hotels,
-                    totalCount,
-                    page,
-                    pageSize,
-                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка при получении списка отелей");
-                return StatusCode(500, new { message = "Ошибка при получении списка отелей", error = ex.Message });
-            }
+                data = hotels,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
         }
 
         [HttpGet("{id}")]

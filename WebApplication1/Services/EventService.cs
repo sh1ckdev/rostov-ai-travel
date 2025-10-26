@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sieve.Models;
 using Sieve.Services;
-using System.Linq.Expressions;
 using WebApplication1.DTOs;
 using WebApplication1.Models;
 
@@ -28,7 +27,7 @@ namespace WebApplication1.Services
         private readonly ILogger<EventService> _logger;
         private readonly ISieveProcessor _sieveProcessor;
 
-        private static readonly Expression<Func<Ivent, EventDto>> MapToDto = e => new EventDto
+        private static readonly Func<Ivent, EventDto> MapToDto = e => new()
         {
             Id = e.Id,
             Name = e.Name,
@@ -49,12 +48,12 @@ namespace WebApplication1.Services
         {
             var query = _context.Ivents.AsQueryable();
             var totalCount = await _sieveProcessor.Apply(sieveModel, query, applyPagination: false).CountAsync();
-            var events = await _sieveProcessor.Apply(sieveModel, query).Select(MapToDto).ToListAsync();
+            var events = await _sieveProcessor.Apply(sieveModel, query).Select(e => MapToDto(e)).ToListAsync();
             return (events, totalCount);
         }
 
         public async Task<EventDto?> GetEventByIdAsync(int id) =>
-            await _context.Ivents.Where(e => e.Id == id).Select(MapToDto).FirstOrDefaultAsync();
+            await _context.Ivents.Where(e => e.Id == id).Select(e => MapToDto(e)).FirstOrDefaultAsync();
 
         public async Task<EventDto> CreateEventAsync(CreateEventDto dto)
         {
@@ -94,19 +93,7 @@ namespace WebApplication1.Services
             if (dto.IsAvalible.HasValue) eventItem.IsAvalible = dto.IsAvalible.Value ? (sbyte)1 : (sbyte)0;
 
             await _context.SaveChangesAsync();
-            return new EventDto
-            {
-                Id = eventItem.Id,
-                Name = eventItem.Name,
-                Description = eventItem.Description,
-                DatetimeOpen = eventItem.DatetimeOpen,
-                DatetimeClose = eventItem.DatetimeClose,
-                Cost = eventItem.Cost,
-                Adress = eventItem.Adress,
-                Contacts = eventItem.Contacts,
-                IsAvalible = eventItem.IsAvalible == 1,
-                AgeLimit = eventItem.AgeLimit ?? 0
-            };
+            return MapToDto(eventItem);
         }
 
         public async Task<bool> DeleteEventAsync(int id) =>
@@ -129,7 +116,7 @@ namespace WebApplication1.Services
         public async Task<IEnumerable<EventDto>> SearchEventsAsync(string searchTerm) =>
             await _context.Ivents
                 .Where(e => e.Name.Contains(searchTerm) || (e.Description != null && e.Description.Contains(searchTerm)))
-                .Select(MapToDto)
+                .Select(e => MapToDto(e))
                 .ToListAsync();
 
         public async Task<BookingResponseDto> BookEventAsync(int eventId, int userId, EventBookingDto dto)
