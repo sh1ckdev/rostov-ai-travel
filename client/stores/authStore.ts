@@ -6,14 +6,15 @@ import { $api } from "../constants/http";
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  user: IUser;
+  username: string;
 }
 
 // src/models/IUser.ts
 export interface IUser {
     id: string;
     username: string;
-    email: string;
+    email?: string;
+    fullName?: string;
   }
 
 class AuthStore {
@@ -60,11 +61,21 @@ class AuthStore {
   async login(username: string, password: string) {
     this.setLoading(true);
     try {
-      const response = await AuthService.login(username, password);
+      const response = await AuthService.login({ username, password });
       await AsyncStorage.setItem("token", response.data.accessToken);
+      await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
+      
+      // Получаем полную информацию о пользователе
+      const userResponse = await AuthService.getMe();
+      
       runInAction(() => {
         this.setAuth(true);
-        this.setUser(response.data.user);
+        this.setUser({
+          id: userResponse.data.userId || '',
+          username: response.data.username,
+          email: userResponse.data.email,
+          fullName: userResponse.data.fullName
+        });
         this.setMessage("Вы успешно вошли");
       });
     } catch (e) {
@@ -78,11 +89,21 @@ class AuthStore {
   async registration(username: string, email: string, password: string) {
     this.setLoading(true);
     try {
-      const response = await AuthService.registration(username, email, password);
+      const response = await AuthService.registrationLegacy(username, email, password);
       await AsyncStorage.setItem("token", response.data.accessToken);
+      await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
+      
+      // Получаем полную информацию о пользователе
+      const userResponse = await AuthService.getMe();
+      
       runInAction(() => {
         this.setAuth(true);
-        this.setUser(response.data.user);
+        this.setUser({
+          id: userResponse.data.userId || '',
+          username: response.data.username,
+          email: userResponse.data.email,
+          fullName: userResponse.data.fullName
+        });
         this.setMessage("Успешная регистрация");
       });
     } catch (e) {
@@ -97,6 +118,7 @@ class AuthStore {
     try {
       await AuthService.logout();
       await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("refreshToken");
       runInAction(() => {
         this.setAuth(false);
         this.setUser({} as IUser);
@@ -121,12 +143,17 @@ class AuthStore {
         return;
       }
 
-      const response = await $api.get<AuthResponse>('/refresh');
-
-      await AsyncStorage.setItem("token", response.data.accessToken);
+      // Получаем информацию о текущем пользователе
+      const userResponse = await AuthService.getMe();
+      
       runInAction(() => {
         this.setAuth(true);
-        this.setUser(response.data.user);
+        this.setUser({
+          id: userResponse.data.userId || '',
+          username: userResponse.data.username || '',
+          email: userResponse.data.email,
+          fullName: userResponse.data.fullName
+        });
       });
     } catch (e) {
       console.error("Ошибка проверки аутентификации:", e);

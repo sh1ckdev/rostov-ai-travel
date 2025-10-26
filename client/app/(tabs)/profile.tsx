@@ -294,8 +294,8 @@ const ProfileScreen = observer(() => {
           <View style={styles.avatar}>
                 <IconSymbol name="person.fill" size={40} color="#007AFF" />
           </View>
-          <Text style={styles.username}>{authStore.user.username}</Text>
-          <Text style={styles.email}>{authStore.user.email}</Text>
+          <Text style={styles.username}>{authStore.user?.username || 'Пользователь'}</Text>
+          <Text style={styles.email}>{authStore.user?.email || 'Email не указан'}</Text>
               </View>
               
         {profileSections.map((section, sectionIndex) => (

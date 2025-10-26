@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { IconSymbol } from './ui/icon-symbol';
-import { AIService, ChatMessage, AIRecommendation } from '../services/AIService';
+import { AIHotelService, ChatMessage, AIRecommendation, AISession } from '../services/AIHotelService';
+import AISessionManager from './AISessionManager';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useI18n } from '@/contexts/I18nContext';
 
@@ -24,82 +25,134 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [currentSession, setCurrentSession] = useState<AISession | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [showSessionManager, setShowSessionManager] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const textInputRef = useRef<TextInput>(null);
 
+  // Инициализация чата
+  const initializeChat = useCallback(async () => {
+    if (isInitialized) return;
+    
+    try {
+      setIsLoading(true);
+      setConnectionError(null);
+      
+      console.log('🚀 Инициализация AI чата...');
+      
+      // Инициализируем новую сессию с ИИ
+      const session = await AIHotelService.initializeSession('Таганрог');
+      setCurrentSession(session);
+      setIsInitialized(true);
+      
+      // Создаем приветственное сообщение
+      const welcomeMessage = AIHotelService.createWelcomeMessage(session);
+      setMessages([welcomeMessage]);
+      
+      console.log('✅ AI чат инициализирован успешно');
+    } catch (error: any) {
+      console.error('❌ Ошибка инициализации чата:', error);
+      setConnectionError(error.message || 'Ошибка подключения к ИИ');
+      
+      // Fallback - показываем приветственное сообщение без AI
+      const welcomeMessage: ChatMessage = {
+        id: '1',
+        role: 'assistant',
+        content: 'Привет! Я ваш AI-помощник по туризму в Таганроге. К сожалению, сейчас есть проблемы с подключением к серверу, но я все равно могу помочь с базовой информацией.',
+        timestamp: new Date()
+      };
+      setMessages([welcomeMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isInitialized]);
+
   useEffect(() => {
-    const welcomeMessage: ChatMessage = {
-      id: '1',
-      role: 'assistant',
-      content: t('ai.placeholder'),
-      timestamp: new Date(),
-      suggestions: [
-        {
-          id: '1',
-          title: 'О туризме',
-          description: 'Рассказать о Ростове-на-Дону',
-          category: 'TRAVEL',
-          confidence: 0.9,
-          reasoning: 'Специализация',
-          action: 'travel_info'
-        },
-        {
-          id: '2',
-          title: 'Общие вопросы',
-          description: 'Поговорить на любую тему',
-          category: 'GENERAL',
-          confidence: 0.8,
-          reasoning: 'Универсальность',
-          action: 'general_chat'
-        },
-        {
-          id: '3',
-          title: 'Помощь',
-          description: 'Как пользоваться приложением',
-          category: 'HELP',
-          confidence: 0.9,
-          reasoning: 'Поддержка',
-          action: 'help'
-        }
-      ]
-    };
-    setMessages([welcomeMessage]);
-  }, [t]);
+    initializeChat();
+  }, [initializeChat]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    // Если чат не инициализирован, инициализируем его
+    if (!isInitialized || !currentSession) {
+      await initializeChat();
+      if (!currentSession) {
+        Alert.alert('Ошибка', 'Не удалось инициализировать чат. Попробуйте еще раз.');
+        return;
+      }
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: inputText,
-      timestamp: new Date()
+      timestamp: new Date(),
+      sessionId: currentSession?.sessionId
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageText = inputText;
     setInputText('');
     Keyboard.dismiss();
     setIsLoading(true);
 
     try {
-      const response = await AIService.sendMessage(inputText);
-      setMessages(prev => [...prev, response]);
-    } catch (error) {
-      console.error('Ошибка отправки сообщения:', error);
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
+      console.log('📤 Отправка сообщения:', messageText);
+      
+      // Отправляем сообщение через AI сервис
+      const aiResponse = await AIHotelService.sendMessage(messageText);
+      
+      setMessages(prev => [...prev, aiResponse]);
+      console.log('✅ Получен ответ от ИИ');
+    } catch (error: any) {
+      console.error('❌ Ошибка отправки сообщения:', error);
+      
+      // Добавляем сообщение об ошибке
+      const errorMessage = AIHotelService.createErrorMessage(error.message || 'Неизвестная ошибка');
+      setMessages(prev => [...prev, errorMessage]);
+      
+      // Показываем уведомление пользователю
+      Alert.alert(
+        'Ошибка', 
+        'Не удалось отправить сообщение. Проверьте подключение к интернету и попробуйте еще раз.',
+        [
+          { text: 'OK', style: 'default' },
+          { text: 'Перезапустить', style: 'destructive', onPress: () => {
+            setIsInitialized(false);
+            setCurrentSession(null);
+            setMessages([]);
+            initializeChat();
+          }}
+        ]
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSuggestionPress = (recommendation: AIRecommendation) => {
-    if (onRecommendationPress) {
-      onRecommendationPress(recommendation);
-    }
-  };
 
   const scrollToBottom = () => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
+  };
+
+  const handleSessionSelect = async (session: AISession) => {
+    try {
+      setCurrentSession(session);
+      setIsInitialized(true);
+      setConnectionError(null);
+      
+      // Загружаем историю чата для выбранной сессии
+      const history = await AIHotelService.getChatHistory(session.sessionId);
+      setMessages(history);
+      
+      console.log('✅ Переключение на сессию:', session.sessionId);
+    } catch (error: any) {
+      console.error('❌ Ошибка переключения сессии:', error);
+      Alert.alert('Ошибка', 'Не удалось загрузить историю сессии.');
+    }
   };
 
   useEffect(() => {
@@ -134,14 +187,50 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     >
       <View style={[styles.header, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF', borderBottomColor: isDark ? '#3a3a3a' : '#E9ECEF' }]}>
         <View style={styles.headerLeft}>
-          <IconSymbol name="brain.head.profile" size={24} color="#007AFF" />
-          <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>{t('ai.title')}</Text>
+          <IconSymbol 
+            name="brain.head.profile" 
+            size={24} 
+            color={connectionError ? '#FF6B6B' : (currentSession ? '#4ECDC4' : '#007AFF')} 
+          />
+          <View style={styles.headerTextContainer}>
+            <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>{t('ai.title')}</Text>
+            {connectionError && (
+              <Text style={[styles.headerSubtitle, { color: '#FF6B6B' }]}>Офлайн режим</Text>
+            )}
+            {currentSession && !connectionError && (
+              <Text style={[styles.headerSubtitle, { color: isDark ? '#cccccc' : '#666' }]}>
+                Сессия: {currentSession.sessionId.slice(0, 8)}...
+              </Text>
+            )}
+          </View>
         </View>
-        {onClose && (
-          <TouchableOpacity style={[styles.closeButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]} onPress={onClose}>
-            <IconSymbol name="xmark" size={20} color={isDark ? '#ffffff' : '#666'} />
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={[styles.sessionButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]} 
+            onPress={() => setShowSessionManager(true)}
+          >
+            <IconSymbol name="list.bullet" size={16} color="#007AFF" />
           </TouchableOpacity>
-        )}
+          {connectionError && (
+            <TouchableOpacity 
+              style={[styles.retryButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]} 
+              onPress={() => {
+                setIsInitialized(false);
+                setCurrentSession(null);
+                setMessages([]);
+                setConnectionError(null);
+                initializeChat();
+              }}
+            >
+              <IconSymbol name="arrow.clockwise" size={16} color="#007AFF" />
+            </TouchableOpacity>
+          )}
+          {onClose && (
+            <TouchableOpacity style={[styles.closeButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]} onPress={onClose}>
+              <IconSymbol name="xmark" size={20} color={isDark ? '#ffffff' : '#666'} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ScrollView 
@@ -166,20 +255,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
               </Text>
             </View>
 
-            {message.suggestions && message.suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {message.suggestions.map((suggestion) => (
-                  <TouchableOpacity
-                    key={suggestion.id}
-                    style={styles.suggestionButton}
-                    onPress={() => handleSuggestionPress(suggestion)}
-                  >
-                    <Text style={styles.suggestionTitle}>{suggestion.title}</Text>
-                    <Text style={styles.suggestionDescription}>{suggestion.description}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
         ))}
 
@@ -187,6 +262,39 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           <View style={styles.loadingContainer}>
             <IconSymbol name="arrow.clockwise" size={16} color="#007AFF" />
             <Text style={styles.loadingText}>AI думает...</Text>
+          </View>
+        )}
+
+        {/* Кнопка для получения рекомендаций отелей */}
+        {currentSession && !connectionError && (
+          <View style={styles.quickActionsContainer}>
+            <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: isDark ? '#3a3a3a' : '#F8F9FA' }]}
+              onPress={async () => {
+                try {
+                  setIsLoading(true);
+                  const recommendations = await AIHotelService.getHotelRecommendations('Таганрог');
+                  const recommendationMessage: ChatMessage = {
+                    id: Date.now().toString(),
+                    role: 'assistant',
+                    content: `🏨 **Рекомендации отелей в Таганроге:**\n\n${recommendations}`,
+                    timestamp: new Date(),
+                    sessionId: currentSession.sessionId
+                  };
+                  setMessages(prev => [...prev, recommendationMessage]);
+                } catch (error: any) {
+                  const errorMessage = AIHotelService.createErrorMessage(error.message);
+                  setMessages(prev => [...prev, errorMessage]);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+            >
+              <IconSymbol name="building.2.fill" size={16} color="#4ECDC4" />
+              <Text style={[styles.quickActionText, { color: isDark ? '#ffffff' : '#333' }]}>
+                Рекомендации отелей
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -224,6 +332,14 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
           />
         </TouchableOpacity>
       </View>
+
+      {/* Менеджер сессий */}
+      <AISessionManager
+        visible={showSessionManager}
+        onClose={() => setShowSessionManager(false)}
+        onSessionSelect={handleSessionSelect}
+        currentSession={currentSession}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -252,10 +368,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  headerTextContainer: {
+    marginLeft: 8,
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 8,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sessionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  retryButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeButton: {
     width: 32,
@@ -312,27 +454,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'right',
   },
-  suggestionsContainer: {
-    marginTop: 8,
-    gap: 8,
-  },
-  suggestionButton: {
-    backgroundColor: '#F8F9FA',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-  },
-  suggestionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  suggestionDescription: {
-    fontSize: 12,
-    color: '#666',
-  },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -348,6 +469,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007AFF',
     fontStyle: 'italic',
+  },
+  quickActionsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    gap: 8,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',

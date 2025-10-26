@@ -1,32 +1,64 @@
-import { $api, initializeAPI } from "../constants/http";
-
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: IUser;
-}
-
-// src/models/IUser.ts
-export interface IUser {
-    id: string;
-    username: string;
-    email: string;
-  }
+import { $api } from "../constants/http";
+import { 
+  RegisterModel, 
+  LoginModel, 
+  LoginResponseModel, 
+  TokenModel
+} from "../types/api";
 
 export default class AuthService {
-  static login(username: string, password: string) {
-    return $api.post<AuthResponse>('/login', { username, password });
+  /**
+   * Регистрация нового пользователя
+   */
+  static register(data: RegisterModel) {
+    return $api.post('/Auth/register', data);
   }
 
-  static registration(username: string, email: string, password: string) {
-    return $api.post<AuthResponse>('/registration', {
-      username,
-      email,
-      password,
-    });
+  /**
+   * Вход в систему
+   */
+  static login(data: LoginModel) {
+    return $api.post<LoginResponseModel>('/Auth/login', data);
   }
 
+  /**
+   * Обновление токена доступа
+   */
+  static refresh(data: TokenModel) {
+    return $api.post<LoginResponseModel>('/Auth/refresh', data);
+  }
+
+  /**
+   * Выход из системы
+   */
   static logout() {
-    return $api.get('/logout');
+    return $api.post('/Auth/logout');
+  }
+
+  /**
+   * Получение информации о текущем пользователе
+   */
+  static getMe() {
+    return $api.get<{
+      username: string;
+      userId: string;
+      email?: string;
+      fullName?: string;
+      isAuthenticated: boolean;
+    }>('/Auth/me');
+  }
+
+  // Методы для обратной совместимости
+  static loginLegacy(username: string, password: string) {
+    return this.login({ username, password });
+  }
+
+  static registrationLegacy(username: string, email: string, password: string) {
+    return this.register({
+      login: username,
+      password,
+      confirmPassword: password,
+      email
+    });
   }
 }

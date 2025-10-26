@@ -40,7 +40,10 @@ const HomeScreen = observer(() => {
           title: t('home.quickActions.ai'),
           subtitle: t('home.quickActions.aiDesc'),
           color: '#FF6B6B',
-          onPress: () => router.push('/(tabs)/ai'),
+          onPress: () => {
+            console.log('🚀 Запуск ИИ помощника...');
+            router.push('/(tabs)/ai');
+          },
         },
         {
           icon: 'map.fill',
@@ -244,7 +247,7 @@ const HomeScreen = observer(() => {
           <Text style={styles.headerTitle}>
             {getGreeting()}, {authStore.user?.username || 'Путешественник'}
           </Text>
-          <Text style={styles.headerSubtitle}>Исследуйте Ростов-на-Дону</Text>
+          <Text style={styles.headerSubtitle}>Исследуйте Таганрог</Text>
           
           <View style={styles.weatherCard}>
             <IconSymbol name="sun.max.fill" size={20} color="#FFD700" />

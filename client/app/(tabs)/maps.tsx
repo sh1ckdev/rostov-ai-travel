@@ -1,283 +1,33 @@
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { authStore } from '../../stores/authStore';
-import * as Location from 'expo-location';
 
-import MapViewComponent from '@/components/MapView';
-import { MapService } from '@/services/MapService';
-import { POI, POICategory, MapRegion } from '@/types/poi';
-import { Route } from '@/services/DirectionsService';
+import HotelsMapView from '@/components/HotelsMapView';
+import HotelsList from '@/components/HotelsList';
+import { Hotel } from '@/types/hotel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useI18n } from '@/contexts/I18nContext';
 
 const MapsScreen = observer(() => {
   const router = useRouter();
-  const params = useLocalSearchParams();
   const { isDark } = useTheme();
-  const { t } = useI18n();
-  const [pois, setPois] = useState<POI[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<POICategory | null>(null);
-  const [selectedPOIs, setSelectedPOIs] = useState<POI[]>([]);
-  const [currentRoute] = useState<Route | null>(null);
-  const [mapRegion, setMapRegion] = useState<MapRegion>({
-    latitude: 47.2357,
-    longitude: 39.7125,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  });
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
-  const [showUserLocation, setShowUserLocation] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [mapStyle, setMapStyle] = useState('light');
+  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [showList, setShowList] = useState(true);
   
-  const getCategoryDisplayName = (category: POICategory): string => {
-    const categoryNames: Record<POICategory, string> = {
-      [POICategory.ATTRACTION]: t('maps.attractions'),
-      [POICategory.RESTAURANT]: t('maps.restaurants'),
-      [POICategory.HOTEL]: t('maps.hotels'),
-      [POICategory.SHOPPING]: t('maps.shopping'),
-      [POICategory.ENTERTAINMENT]: t('maps.entertainment'),
-      [POICategory.TRANSPORT]: t('maps.transport'),
-      [POICategory.HEALTH]: t('maps.health'),
-      [POICategory.EDUCATION]: t('maps.education'),
-      [POICategory.RELIGIOUS]: t('maps.religious'),
-      [POICategory.NATURE]: t('maps.nature'),
-      [POICategory.CULTURE]: t('maps.culture'),
-      [POICategory.SPORT]: t('maps.sport'),
-      [POICategory.OTHER]: t('maps.other'),
-    };
-    return categoryNames[category];
-  };
-
   useEffect(() => {
     if (!authStore.isAuth) {
       router.replace("/login");
     }
   }, [router]);
 
-  const handleCategoryFilter = async (category: POICategory | null) => {
-    setSelectedCategory(category);
-    try {
-      const data = category 
-        ? await MapService.getPOIsByCategory(category)
-        : await MapService.getPOIs();
-      setPois(data);
-      const recommendedRegion = MapService.getRecommendedRegion(data);
-      setMapRegion(recommendedRegion);
-    } catch (error) {
-      console.error('Ошибка фильтрации POI:', error);
-      Alert.alert('Ошибка', 'Не удалось отфильтровать точки интереса');
-    } finally {
-    }
+  const handleHotelSelect = (hotel: Hotel) => {
+    setSelectedHotel(hotel);
   };
 
-  const loadPOIs = useCallback(async () => {
-    try {
-      const loadLat = userLocation?.latitude || 47.2357;
-      const loadLon = userLocation?.longitude || 39.7125;
-      const data = await MapService.getPOIs({
-        autoLoad: true,
-        latitude: loadLat,
-        longitude: loadLon,
-        radius: 10000
-      });
-      setPois(data || []);
-      if (data && data.length > 0) {
-        const recommendedRegion = MapService.getRecommendedRegion(data);
-        setMapRegion(recommendedRegion);
-        console.log(`Загружено ${data.length} POI`);
-      } else {
-        console.log('POI не найдены');
-        setMapRegion({
-          latitude: 47.2357,
-          longitude: 39.7125,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
-        });
-      }
-    } catch (err) {
-      console.error('Ошибка загрузки POI:', err);
-      Alert.alert('Ошибка', 'Не удалось загрузить точки интереса');
-      setPois([]);
-    } finally {
-    }
-  }, [userLocation]);
-
-  const loadNearbyPOIs = useCallback(async (latitude: number, longitude: number) => {
-    try {
-      const data = await MapService.getPOIsInRadius(latitude, longitude, 10000);
-      if (data && data.length > 0) {
-        setPois(data);
-        const recommendedRegion = MapService.getRecommendedRegion(data);
-        setMapRegion(recommendedRegion);
-      } else {
-        console.log('Ближайших POI не найдено, загружаем все');
-        await loadPOIs();
-      }
-    } catch (error) {
-      console.error('Ошибка загрузки ближайших POI:', error);
-      await loadPOIs();
-    } finally {
-    }
-  }, [loadPOIs]);
-
-  const getUserLocation = useCallback(async () => {
-    try {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const userCoords = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setUserLocation(userCoords);
-      await loadNearbyPOIs(userCoords.latitude, userCoords.longitude);
-    } catch {
-      console.log('Геолокация недоступна, используем координаты по умолчанию (Ростов-на-Дону)');
-      setUserLocation({ latitude: 47.2357, longitude: 39.7125 });
-      await loadPOIs();
-    }
-  }, [loadNearbyPOIs, loadPOIs]);
-
-  const requestLocationPermission = useCallback(async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        setLocationPermissionGranted(true);
-        await getUserLocation();
-      } else {
-        Alert.alert(
-          'Разрешение отклонено',
-          'Для отображения вашей позиции на карте необходимо разрешить доступ к геолокации'
-        );
-      }
-    } catch (err) {
-      console.error('Ошибка запроса разрешения на геолокацию:', err);
-    }
-  }, [getUserLocation]);
-
-  useEffect(() => {
-    try {
-      if (params?.category && typeof params.category === 'string') {
-        setSelectedCategory(params.category as POICategory);
-        handleCategoryFilter(params.category as POICategory);
-      }
-
-      if (params?.selectedPOI && typeof params.selectedPOI === 'string') {
-        MapService.getPOIById(params.selectedPOI)
-          .then(poi => {
-            setSelectedPOIs(prev => prev.some(p => p.id === poi.id) ? prev : [...prev, poi]);
-            setMapRegion({
-              latitude: poi.latitude,
-              longitude: poi.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            });
-          })
-          .catch(() => {});
-      }
-
-      if (params?.action === 'apply_route') {
-        try {
-          const list = typeof params.poiIds === 'string' ? JSON.parse(params.poiIds) : [];
-          if (Array.isArray(list) && list.length > 0) {
-            Promise.all(list.map((id: string) => MapService.getPOIById(id)))
-              .then((loaded) => {
-                setSelectedPOIs(loaded);
-              })
-              .catch(() => {});
-          }
-        } catch {}
-      }
-    } catch {}
-  }, [params]);
-
-
-
-  const handlePOIToggle = (poi: POI) => {
-    setSelectedPOIs(prev => {
-      const isSelected = prev.some(p => p.id === poi.id);
-      if (isSelected) {
-        return prev.filter(p => p.id !== poi.id);
-      } else {
-        return [...prev, poi];
-      }
-    });
-  };
-
-
-
-  useEffect(() => {
-    loadPOIs();
-    requestLocationPermission();
-  }, [loadPOIs, requestLocationPermission]);
-
-
-  const handleLocationSelect = (coordinate: { latitude: number; longitude: number }) => {
-    console.log('Выбрана новая локация:', coordinate);
-  };
-
-  const toggleMapType = () => {
-    const types: ('standard' | 'satellite' | 'hybrid')[] = ['standard', 'satellite', 'hybrid'];
-    const currentIndex = types.indexOf(mapType);
-    const nextIndex = (currentIndex + 1) % types.length;
-    setMapType(types[nextIndex]);
-  };
-
-  const getMapTypeIcon = () => {
-    switch (mapType) {
-      case 'standard':
-        return 'map';
-      case 'satellite':
-        return 'globe';
-      case 'hybrid':
-        return 'map.fill';
-      default:
-        return 'map';
-    }
-  };
-
-  const toggleUserLocation = () => {
-    setShowUserLocation(!showUserLocation);
-  };
-
-  const toggleMapStyle = () => {
-    const styles = ['light', 'dark', 'voyager', 'positron', 'openstreet'];
-    const currentIndex = styles.indexOf(mapStyle);
-    const nextIndex = (currentIndex + 1) % styles.length;
-    setMapStyle(styles[nextIndex]);
-  };
-
-  const centerOnUser = async () => {
-    if (!locationPermissionGranted) {
-      Alert.alert(
-        'Геолокация недоступна',
-        'Разрешите доступ к местоположению в настройках приложения'
-      );
-      return;
-    }
-
-    try {
-      await getUserLocation();
-      
-      if (userLocation) {
-        setMapRegion({
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-      }
-    } catch (error) {
-      console.error('Ошибка центрирования на пользователе:', error);
-      Alert.alert('Ошибка', 'Не удалось определить ваше местоположение');
-    }
+  const toggleList = () => {
+    setShowList(!showList);
   };
 
   if (!authStore.isAuth) {
@@ -285,310 +35,55 @@ const MapsScreen = observer(() => {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5' }]} contentContainerStyle={styles.scrollContent}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5' }]}>
       {/* Заголовок */}
       <View style={[styles.header, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
-        <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>{t('maps.title')}</Text>
-        <Text style={[styles.headerSubtitle, { color: isDark ? '#cccccc' : '#666' }]}>Исследуйте город с помощью интерактивных карт</Text>
-        <View style={styles.mapStyleIndicator}>
-          <IconSymbol name="paintbrush" size={14} color="#007AFF" />
-          <Text style={[styles.mapStyleText, { color: isDark ? '#cccccc' : '#666' }]}>
-            {t('maps.style')}: {getMapStyleDisplayName(mapStyle)}
-          </Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: isDark ? '#ffffff' : '#333' }]}>
+          Карта отелей
+        </Text>
+        <Text style={[styles.headerSubtitle, { color: isDark ? '#cccccc' : '#666' }]}>
+          Найдите отели рядом с вами
+        </Text>
       </View>
 
-      {/* Панель управления картой */}
-      <View style={[styles.controlsPanel, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersContainer}
-          contentContainerStyle={styles.filtersContent}
+      {/* Кнопка переключения списка */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF' }]}
+          onPress={toggleList}
         >
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
-              selectedCategory === null && styles.filterButtonActive
-            ]}
-            onPress={() => handleCategoryFilter(null)}
-          >
-            <Text style={[
-              styles.filterButtonText,
-              { color: isDark ? '#ffffff' : '#666' },
-              selectedCategory === null && styles.filterButtonTextActive
-            ]}>
-              {t('common.all')}
-            </Text>
-          </TouchableOpacity>
-          
-          {Object.values(POICategory).map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.filterButton,
-                { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
-                selectedCategory === category && styles.filterButtonActive
-              ]}
-              onPress={() => handleCategoryFilter(category)}
-            >
-              <Text style={[
-                styles.filterButtonText,
-                { color: isDark ? '#ffffff' : '#666' },
-                selectedCategory === category && styles.filterButtonTextActive
-              ]}>
-                {getCategoryDisplayName(category)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Кнопки управления картой */}
-        <View style={styles.mapControls}>
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-            onPress={toggleMapType}
-          >
-            <IconSymbol 
-              name={getMapTypeIcon()} 
-              size={20} 
-              color="#007AFF" 
-            />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-            onPress={toggleUserLocation}
-          >
-            <IconSymbol 
-              name={showUserLocation ? 'location.fill' : 'location'} 
-              size={20} 
-              color={showUserLocation ? '#007AFF' : '#666'} 
-            />
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-            onPress={centerOnUser}
-          >
-            <IconSymbol 
-              name="location.circle" 
-              size={20} 
-              color="#007AFF" 
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-            onPress={toggleMapStyle}
-          >
-            <IconSymbol 
-              name="paintbrush" 
-              size={20} 
-              color="#007AFF" 
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-            onPress={() => setIsFullscreen(true)}
-          >
-            <IconSymbol 
-              name="arrow.up.left.and.arrow.down.right" 
-              size={20} 
-              color="#007AFF" 
-            />
-          </TouchableOpacity>
-
-        </View>
+          <IconSymbol 
+            name={showList ? 'list.bullet' : 'map'} 
+            size={20} 
+            color="#007AFF" 
+          />
+          <Text style={[styles.toggleText, { color: isDark ? '#ffffff' : '#333' }]}>
+            {showList ? 'Список' : 'Карта'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Карта */}
-      <View style={styles.mapContainer}>
-        <MapViewComponent
-          style={styles.map}
-          initialRegion={mapRegion}
-          onLocationSelect={handleLocationSelect}
-          showUserLocation={showUserLocation}
-          route={currentRoute}
-          mapType={mapType}
-          mapStyle={mapStyle}
-          pois={pois}
-          selectedPOIs={selectedPOIs}
-          onPOISelect={handlePOIToggle}
-        />
+      {/* Основной контент */}
+      <View style={styles.content}>
+        {showList ? (
+          <HotelsList
+            onHotelSelect={handleHotelSelect}
+            selectedHotelId={selectedHotel?.id}
+          />
+        ) : (
+          <HotelsMapView
+            onHotelSelect={handleHotelSelect}
+          />
+        )}
       </View>
-
-      {/* Модальное окно с картой в полном экране */}
-      <Modal
-        visible={isFullscreen}
-        animationType="slide"
-        presentationStyle="fullScreen"
-      >
-        <View style={styles.fullscreenContainer}>
-          {/* Заголовок полного экрана */}
-          <View style={styles.fullscreenHeader}>
-            <TouchableOpacity
-              style={styles.fullscreenCloseButton}
-              onPress={() => setIsFullscreen(false)}
-            >
-              <IconSymbol name="xmark" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Панель управления в полном экране */}
-          <View style={[styles.fullscreenControls, { backgroundColor: isDark ? '#2a2a2a' : '#FFFFFF' }]}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.filtersContainer}
-              contentContainerStyle={styles.filtersContent}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
-                  selectedCategory === null && styles.filterButtonActive
-                ]}
-                onPress={() => handleCategoryFilter(null)}
-              >
-                <Text style={[
-                  styles.filterButtonText,
-                  { color: isDark ? '#ffffff' : '#666' },
-                  selectedCategory === null && styles.filterButtonTextActive
-                ]}>
-                  {t('common.all')}
-                </Text>
-              </TouchableOpacity>
-              
-              {Object.values(POICategory).map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[
-                    styles.filterButton,
-                    { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' },
-                    selectedCategory === category && styles.filterButtonActive
-                  ]}
-                  onPress={() => handleCategoryFilter(category)}
-                >
-                  <Text style={[
-                    styles.filterButtonText,
-                    { color: isDark ? '#ffffff' : '#666' },
-                    selectedCategory === category && styles.filterButtonTextActive
-                  ]}>
-                    {getCategoryDisplayName(category)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Кнопки управления картой в полном экране */}
-            <View style={styles.mapControls}>
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-                onPress={toggleMapType}
-              >
-                <IconSymbol 
-                  name={getMapTypeIcon()} 
-                  size={20} 
-                  color="#007AFF" 
-                />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-                onPress={toggleUserLocation}
-              >
-                <IconSymbol 
-                  name={showUserLocation ? 'location.fill' : 'location'} 
-                  size={20} 
-                  color={showUserLocation ? '#007AFF' : '#666'} 
-                />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-                onPress={centerOnUser}
-              >
-                <IconSymbol 
-                  name="location.circle" 
-                  size={20} 
-                  color="#007AFF" 
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.controlButton, { backgroundColor: isDark ? '#3a3a3a' : '#FFFFFF', borderColor: isDark ? '#555' : '#E9ECEF' }]}
-                onPress={toggleMapStyle}
-              >
-                <IconSymbol 
-                  name="paintbrush" 
-                  size={20} 
-                  color="#007AFF" 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Карта в полном экране */}
-          <View style={styles.fullscreenMapContainer}>
-            <MapViewComponent
-              style={styles.fullscreenMap}
-              initialRegion={mapRegion}
-              onLocationSelect={handleLocationSelect}
-              showUserLocation={showUserLocation}
-              route={currentRoute}
-              mapType={mapType}
-              mapStyle={mapStyle}
-              pois={pois}
-              selectedPOIs={selectedPOIs}
-              onPOISelect={handlePOIToggle}
-            />
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+    </View>
   );
 });
-
-const getCategoryDisplayName = (category: POICategory): string => {
-  const categoryNames: Record<POICategory, string> = {
-    [POICategory.ATTRACTION]: 'Достопримечательности',
-    [POICategory.RESTAURANT]: 'Рестораны',
-    [POICategory.HOTEL]: 'Отели',
-    [POICategory.SHOPPING]: 'Магазины',
-    [POICategory.ENTERTAINMENT]: 'Развлечения',
-    [POICategory.TRANSPORT]: 'Транспорт',
-    [POICategory.HEALTH]: 'Здоровье',
-    [POICategory.EDUCATION]: 'Образование',
-    [POICategory.RELIGIOUS]: 'Религия',
-    [POICategory.NATURE]: 'Природа',
-    [POICategory.CULTURE]: 'Культура',
-    [POICategory.SPORT]: 'Спорт',
-    [POICategory.OTHER]: 'Другое',
-  };
-  return categoryNames[category];
-};
-
-const getMapStyleDisplayName = (style: string): string => {
-  const styleNames: Record<string, string> = {
-    'light': 'Светлая',
-    'dark': 'Темная',
-    'voyager': 'Путешественник',
-    'positron': 'Минимализм',
-    'openstreet': 'OpenStreet',
-  };
-  return styleNames[style] || 'Светлая';
-};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   header: {
     paddingTop: 60,
@@ -610,149 +105,34 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#333',
-    fontFamily: Fonts.rounded,
   },
   headerSubtitle: {
     fontSize: 16,
     color: '#666',
     marginTop: 4,
   },
-  mapStyleIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#F0F8FF',
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  mapStyleText: {
-    fontSize: 12,
-    color: '#007AFF',
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  controlsPanel: {
-    backgroundColor: '#FFFFFF',
-    marginTop: 10,
-    marginHorizontal: 20,
-    borderRadius: 15,
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  filtersContainer: {
-    maxHeight: 60,
-  },
-  filtersContent: {
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
-    backgroundColor: '#F8F9FA',
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-  },
-  filterButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  filterButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  mapControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingHorizontal: 15,
-    paddingTop: 10,
-    gap: 15,
-  },
-  controlButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-  },
-  mapContainer: {
-    height: 500,
-    margin: 20,
-    borderRadius: 15,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  map: {
-    flex: 1,
-  },
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  fullscreenHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 50,
+  toggleContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: '#fff',
-  },
-  fullscreenTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: Fonts.rounded,
-  },
-  fullscreenCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullscreenControls: {
-    backgroundColor: '#FFFFFF',
     paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
-  fullscreenMapContainer: {
-    flex: 1,
-    margin: 0,
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    gap: 8,
   },
-  fullscreenMap: {
+  toggleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  content: {
     flex: 1,
   },
 });

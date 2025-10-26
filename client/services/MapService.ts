@@ -1,59 +1,78 @@
 import { POI, POICategory, MapRegion } from '../types/poi';
 import { $api } from '@/constants/http';
-import { staticPOIs, getPOIsByLocation, searchPOIs, getPOIsByCategory } from '../data/staticPOI';
-import { staticRestaurants, getRestaurantsByLocation, searchRestaurants } from '../data/staticRestaurants';
-import { staticEvents, getEventsByLocation, searchEvents } from '../data/staticEvents';
+import { GeolocationService } from '../utils/geolocation';
 
 export class MapService {
-  // Автоматически загрузить POI (используем статические данные)
+  /**
+   * Получить координаты пользователя с fallback на Ростов-на-Дону
+   */
+  static async getUserLocation(): Promise<{ latitude: number; longitude: number }> {
+    try {
+      const coordinates = await GeolocationService.getLocationWithFallback();
+      console.log('Координаты пользователя:', coordinates);
+      return coordinates;
+    } catch (error) {
+      console.warn('Ошибка получения координат пользователя:', error);
+      return GeolocationService.getDefaultCoordinates();
+    }
+  }
+
+  // Автоматически загрузить POI (только через API)
   static async autoLoadPOIs(latitude: number, longitude: number, radius = 10000): Promise<{ success: boolean; count: number; message: string }> {
     try {
-      // Используем статические данные
-      const pois = getPOIsByLocation(latitude, longitude, radius / 1000); // Конвертируем в км
+      // Получаем POI через API
+      const pois = await MapService.getPOIs({
+        latitude,
+        longitude,
+        radius
+      });
       
       return {
         success: true,
         count: pois.length,
-        message: `Загружено ${pois.length} точек интереса из статических данных`
+        message: `Загружено ${pois.length} точек интереса из API`
       };
     } catch (error) {
       console.error('Ошибка автоматической загрузки POI:', error);
       return {
         success: false,
         count: 0,
-        message: 'Ошибка загрузки POI'
+        message: 'Ошибка загрузки точек интереса из API'
       };
     }
   }
 
-  // Улучшенный поиск POI (используем статические данные)
+  // Улучшенный поиск POI (только через API)
   static async getEnhancedPOIs(latitude: number, longitude: number, radius = 10000, query = ''): Promise<POI[]> {
     try {
-      // Используем статические данные
-      let pois = getPOIsByLocation(latitude, longitude, radius / 1000);
+      // Получаем POI через API
+      const pois = await MapService.getPOIs({
+        latitude,
+        longitude,
+        radius,
+        search: query.trim() || undefined
+      });
       
-      // Если есть поисковый запрос, фильтруем результаты
-      if (query.trim()) {
-        pois = searchPOIs(query);
-      }
-      
-      console.log('Загружено улучшенных POI:', pois.length);
+      console.log('Загружено улучшенных POI из API:', pois.length);
       return pois;
     } catch (error) {
-      console.error('Ошибка загрузки улучшенных POI:', error);
-      return staticPOIs.slice(0, 10); // Возвращаем первые 10 POI
+      console.error('Ошибка загрузки улучшенных POI из API:', error);
+      return []; // Возвращаем пустой массив вместо статических данных
     }
   }
 
-  // Поиск POI по названию (используем статические данные)
+  // Поиск POI по названию (только через API)
   static async searchPOIByName(query: string, limit = 10): Promise<POI[]> {
     try {
-      // Используем статические данные
-      const pois = searchPOIs(query).slice(0, limit);
-      console.log('Найдено POI по названию:', pois.length);
-      return pois;
+      // Получаем POI через API
+      const pois = await MapService.getPOIs({
+        search: query.trim()
+      });
+      
+      console.log('Найдено POI по названию через API:', pois.length);
+      return pois.slice(0, limit);
     } catch (error) {
-      console.error('Ошибка поиска POI по названию:', error);
+      console.error('Ошибка поиска POI по названию через API:', error);
       return [];
     }
   }
@@ -87,9 +106,9 @@ export class MapService {
         }
       }
       
-      // Fallback на тестовые данные
-      const response = await $api.get('/pois/test');
-      const pois = this.transformPOIs(response.data.data);
+      // Fallback на тестовые данные - используем статические данные
+      console.log('⚠️ Используем статические POI данные');
+      const pois = this.transformPOIs([]);
       
       console.log('Загружено тестовых POI:', pois.length);
       return pois;
@@ -193,20 +212,17 @@ export class MapService {
     limit?: number;
   }): Promise<POI[]> {
     try {
-      // Используем статические данные
-      let pois = getPOIsByCategory(category);
+      // Получаем POI через API
+      const pois = await MapService.getPOIs({
+        category,
+        page: params?.page || 1,
+        limit: params?.limit || 50
+      });
       
-      // Применяем пагинацию если нужно
-      if (params?.limit) {
-        const startIndex = (params.page || 0) * params.limit;
-        pois = pois.slice(startIndex, startIndex + params.limit);
-      }
-      
-      console.log(`Загружено ${pois.length} POI категории ${category}`);
+      console.log(`Загружено ${pois.length} POI категории ${category} из API`);
       return pois;
     } catch (error) {
-      console.error('Ошибка загрузки POI по категории:', error);
-      // Возвращаем пустой массив в случае ошибки
+      console.error('Ошибка загрузки POI по категории из API:', error);
       return [];
     }
   }
@@ -638,41 +654,25 @@ export class MapService {
     radius?: number;
   }): Promise<any[]> {
     try {
-      let restaurants = staticRestaurants;
+      // Получаем рестораны через API
+      const response = await $api.get('/restaurants', {
+        params: {
+          page: params?.page || 1,
+          limit: params?.limit || 50,
+          cuisine: params?.cuisine,
+          minPrice: params?.priceRange?.min,
+          maxPrice: params?.priceRange?.max,
+          latitude: params?.latitude,
+          longitude: params?.longitude,
+          radius: params?.radius
+        }
+      });
 
-      // Фильтрация по кухне
-      if (params?.cuisine) {
-        restaurants = restaurants.filter(restaurant =>
-          restaurant.cuisine.some(c => c.toLowerCase().includes(params.cuisine!.toLowerCase()))
-        );
-      }
-
-      // Фильтрация по ценовому диапазону
-      if (params?.priceRange) {
-        restaurants = restaurants.filter(restaurant =>
-          restaurant.priceLevel >= params.priceRange!.min && restaurant.priceLevel <= params.priceRange!.max
-        );
-      }
-
-      // Фильтрация по местоположению
-      if (params?.latitude && params?.longitude) {
-        restaurants = getRestaurantsByLocation(
-          params.latitude,
-          params.longitude,
-          (params.radius || 10000) / 1000
-        );
-      }
-
-      // Пагинация
-      if (params?.limit) {
-        const startIndex = (params.page || 0) * params.limit;
-        restaurants = restaurants.slice(startIndex, startIndex + params.limit);
-      }
-
-      console.log(`Загружено ${restaurants.length} ресторанов`);
+      const restaurants = response.data.data || [];
+      console.log(`Загружено ${restaurants.length} ресторанов из API`);
       return restaurants;
     } catch (error) {
-      console.error('Ошибка загрузки ресторанов:', error);
+      console.error('Ошибка загрузки ресторанов из API:', error);
       return [];
     }
   }
@@ -683,18 +683,20 @@ export class MapService {
     limit?: number;
   }): Promise<any[]> {
     try {
-      let restaurants = searchRestaurants(query);
+      // Получаем рестораны через API
+      const response = await $api.get('/restaurants/search', {
+        params: {
+          query: query.trim(),
+          page: params?.page || 1,
+          limit: params?.limit || 50
+        }
+      });
 
-      // Пагинация
-      if (params?.limit) {
-        const startIndex = (params.page || 0) * params.limit;
-        restaurants = restaurants.slice(startIndex, startIndex + params.limit);
-      }
-
-      console.log(`Найдено ${restaurants.length} ресторанов по запросу "${query}"`);
+      const restaurants = response.data.data || [];
+      console.log(`Найдено ${restaurants.length} ресторанов по запросу "${query}" через API`);
       return restaurants;
     } catch (error) {
-      console.error('Ошибка поиска ресторанов:', error);
+      console.error('Ошибка поиска ресторанов через API:', error);
       return [];
     }
   }
@@ -712,39 +714,62 @@ export class MapService {
     radius?: number;
   }): Promise<any[]> {
     try {
-      let events = staticEvents;
-
-      // Фильтрация по категории
+      // Используем API для получения событий
+      const EventService = (await import('./EventService')).default;
+      
+      // Строим фильтры для API
+      const filters: string[] = [];
+      
       if (params?.category) {
-        events = events.filter(event => event.category === params.category);
+        filters.push(`category:${params.category}`);
       }
 
-      // Фильтрация по дате
+      // Получаем события через API
+      const response = await EventService.getEvents({
+        Filters: filters.join(','),
+        Page: params?.page || 1,
+        PageSize: params?.limit || 50,
+        Sorts: 'datetimeOpen:asc'
+      });
+
+      let events = response.data.data || [];
+
+      // Фильтрация по дате (если API не поддерживает)
       if (params?.dateRange) {
-        events = events.filter(event =>
-          event.startDate >= params.dateRange!.start && event.startDate <= params.dateRange!.end
-        );
+        events = events.filter((event: any) => {
+          if (!event.datetimeOpen) return true;
+          const eventDate = new Date();
+          eventDate.setHours(event.datetimeOpen.hour || 0, event.datetimeOpen.minute || 0);
+          return eventDate >= params.dateRange!.start && eventDate <= params.dateRange!.end;
+        });
       }
 
-      // Фильтрация по местоположению
-      if (params?.latitude && params?.longitude) {
-        events = getEventsByLocation(
-          params.latitude,
-          params.longitude,
-          (params.radius || 10000) / 1000
-        );
+      // Фильтрация по местоположению (если API не поддерживает геофильтры)
+      if (params?.latitude && params?.longitude && params?.radius) {
+        events = events.filter((event: any) => {
+          // Предполагаем, что у события есть координаты в адресе
+          // Если нет координат, используем все события
+          if (!event.latitude || !event.longitude) {
+            return true; // Показываем все события без координат
+          }
+          
+          const distance = MapService.calculateDistance(
+            params.latitude!,
+            params.longitude!,
+            event.latitude,
+            event.longitude
+          );
+          return distance <= (params.radius! / 1000); // Конвертируем в км
+        });
       }
 
-      // Пагинация
-      if (params?.limit) {
-        const startIndex = (params.page || 0) * params.limit;
-        events = events.slice(startIndex, startIndex + params.limit);
-      }
+      // Преобразуем данные API в формат для карты
+      const transformedEvents = events.map((event: any) => MapService.transformApiEventForMap(event));
 
-      console.log(`Загружено ${events.length} событий`);
-      return events;
+      console.log(`Загружено ${transformedEvents.length} событий из API`);
+      return transformedEvents;
     } catch (error) {
-      console.error('Ошибка загрузки событий:', error);
+      console.error('Ошибка загрузки событий из API:', error);
       return [];
     }
   }
@@ -755,7 +780,11 @@ export class MapService {
     limit?: number;
   }): Promise<any[]> {
     try {
-      let events = searchEvents(query);
+      // Используем API для поиска событий
+      const EventService = (await import('./EventService')).default;
+      const response = await EventService.searchEvents({ query });
+      
+      let events = response.data || [];
 
       // Пагинация
       if (params?.limit) {
@@ -763,8 +792,11 @@ export class MapService {
         events = events.slice(startIndex, startIndex + params.limit);
       }
 
-      console.log(`Найдено ${events.length} событий по запросу "${query}"`);
-      return events;
+      // Преобразуем данные API в формат для карты
+      const transformedEvents = events.map((event: any) => MapService.transformApiEventForMap(event));
+
+      console.log(`Найдено ${transformedEvents.length} событий по запросу "${query}" из API`);
+      return transformedEvents;
     } catch (error) {
       console.error('Ошибка поиска событий:', error);
       return [];
@@ -774,16 +806,482 @@ export class MapService {
   // Получить предстоящие события
   static async getUpcomingEvents(limit: number = 10): Promise<any[]> {
     try {
-      const now = new Date();
-      const upcomingEvents = staticEvents
-        .filter(event => event.startDate > now && event.isAvailable)
-        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-        .slice(0, limit);
+      // Используем API для получения событий
+      const EventService = (await import('./EventService')).default;
+      const response = await EventService.getEvents({
+        Page: 1,
+        PageSize: limit * 2, // Получаем больше, чтобы отфильтровать
+        Sorts: 'datetimeOpen:asc'
+      });
 
-      console.log(`Загружено ${upcomingEvents.length} предстоящих событий`);
-      return upcomingEvents;
+      let events = response.data.data || [];
+      
+      // Фильтруем только доступные события
+      events = events.filter((event: any) => event.isAvalible !== false);
+      
+      // Ограничиваем количество
+      events = events.slice(0, limit);
+
+      // Преобразуем данные API в формат для карты
+      const transformedEvents = events.map((event: any) => MapService.transformApiEventForMap(event));
+
+      console.log(`Загружено ${transformedEvents.length} предстоящих событий из API`);
+      return transformedEvents;
     } catch (error) {
-      console.error('Ошибка загрузки предстоящих событий:', error);
+      console.error('Ошибка загрузки предстоящих событий из API:', error);
+      return [];
+    }
+  }
+
+  // ==================== Работа с отелями на карте ====================
+
+  /**
+   * Получить все отели для отображения на карте
+   */
+  static async getHotelsForMap(params?: {
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+    minRating?: number;
+    maxPrice?: number;
+    minPrice?: number;
+  }): Promise<any[]> {
+    try {
+      // Используем API вместо статических данных
+      const HotelService = (await import('./HotelService')).default;
+      
+      // Строим фильтры для API
+      const filters: string[] = [];
+      
+      if (params?.minRating) {
+        filters.push(`rating:>=${params.minRating}`);
+      }
+      
+      if (params?.minPrice !== undefined) {
+        filters.push(`cost:>=${params.minPrice}`);
+      }
+      
+      if (params?.maxPrice !== undefined) {
+        filters.push(`cost:<=${params.maxPrice}`);
+      }
+
+      // Получаем отели через API
+      const response = await HotelService.getHotels({
+        Filters: filters.join(','),
+        Page: 1,
+        PageSize: 100, // Получаем больше отелей для карты
+        Sorts: 'rating:desc'
+      });
+
+      let hotels = response.data.data || [];
+
+      // Фильтрация по местоположению (если API не поддерживает геофильтры)
+      if (params?.latitude && params?.longitude && params?.radius) {
+        hotels = hotels.filter((hotel: any) => {
+          // Предполагаем, что у отеля есть координаты в адресе или отдельном поле
+          // Если нет координат, используем все отели
+          if (!hotel.latitude || !hotel.longitude) {
+            return true; // Показываем все отели без координат
+          }
+          
+          const distance = MapService.calculateDistance(
+            params.latitude!,
+            params.longitude!,
+            hotel.latitude,
+            hotel.longitude
+          );
+          return distance <= (params.radius! / 1000); // Конвертируем в км
+        });
+      }
+
+      // Преобразуем данные API в формат для карты
+      const transformedHotels = hotels.map((hotel: any) => MapService.transformApiHotelForMap(hotel));
+
+      console.log(`Загружено ${transformedHotels.length} отелей для карты из API`);
+      return transformedHotels;
+    } catch (error) {
+      console.error('Ошибка загрузки отелей для карты:', error);
+      console.error('Ошибка загрузки отелей из API:', error);
+    }
+  }
+
+  /**
+   * Получить ближайшие отели
+   */
+  static async getNearbyHotels(
+    latitude: number,
+    longitude: number,
+    radius: number = 5000
+  ): Promise<any[]> {
+    try {
+      // Используем API для получения отелей
+      const hotels = await MapService.getHotelsForMap({
+        latitude,
+        longitude,
+        radius
+      });
+      
+      console.log(`Найдено ${hotels.length} отелей поблизости из API`);
+      return hotels;
+    } catch (error) {
+      console.error('Ошибка поиска ближайших отелей:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Поиск отелей по названию или описанию
+   */
+  static async searchHotelsOnMap(query: string): Promise<any[]> {
+    try {
+      // Используем API для поиска отелей
+      const HotelService = (await import('./HotelService')).default;
+      const response = await HotelService.searchHotels({ query });
+      
+      const hotels = response.data || [];
+      const transformedHotels = hotels.map((hotel: any) => MapService.transformApiHotelForMap(hotel));
+      
+      console.log(`Найдено ${transformedHotels.length} отелей по запросу "${query}" из API`);
+      return transformedHotels;
+    } catch (error) {
+      console.error('Ошибка поиска отелей:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Получить отели по диапазону цен
+   */
+  static async getHotelsByPriceOnMap(
+    minPrice: number,
+    maxPrice: number
+  ): Promise<any[]> {
+    try {
+      // Используем API с фильтрами по цене
+      const hotels = await MapService.getHotelsForMap({
+        minPrice,
+        maxPrice
+      });
+      
+      console.log(`Найдено ${hotels.length} отелей в диапазоне цен ${minPrice}-${maxPrice} из API`);
+      return hotels;
+    } catch (error) {
+      console.error('Ошибка поиска отелей по цене:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Получить отели по минимальному рейтингу
+   */
+  static async getHotelsByRatingOnMap(minRating: number): Promise<any[]> {
+    try {
+      // Используем API с фильтром по рейтингу
+      const hotels = await MapService.getHotelsForMap({
+        minRating
+      });
+      
+      console.log(`Найдено ${hotels.length} отелей с рейтингом от ${minRating} из API`);
+      return hotels;
+    } catch (error) {
+      console.error('Ошибка поиска отелей по рейтингу:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Преобразовать отель из API в формат для карты
+   */
+  static transformApiHotelForMap(apiHotel: any): any {
+    // Парсим цену из строки (например, "8500 ₽" -> 8500)
+    const parsePrice = (costString: string): number => {
+      if (!costString) return 0;
+      const match = costString.match(/(\d+)/);
+      return match ? parseInt(match[1]) : 0;
+    };
+
+    // Парсим время из TimeOnly объекта
+    const parseTime = (timeObj: any): string => {
+      if (!timeObj) return '14:00';
+      const hour = timeObj.hour?.toString().padStart(2, '0') || '14';
+      const minute = timeObj.minute?.toString().padStart(2, '0') || '00';
+      return `${hour}:${minute}`;
+    };
+
+    // Генерируем координаты на основе адреса (для демонстрации)
+    // В реальном приложении координаты должны приходить с API
+    const generateCoordinates = (address: string) => {
+      // Базовые координаты Ростова-на-Дону
+      const baseLat = 47.2357;
+      const baseLng = 39.7125;
+      
+      // Добавляем небольшое смещение на основе ID отеля
+      const id = apiHotel.id || 1;
+      const latOffset = (id % 10) * 0.01;
+      const lngOffset = (id % 7) * 0.01;
+      
+      return {
+        latitude: baseLat + latOffset,
+        longitude: baseLng + lngOffset
+      };
+    };
+
+    const coordinates = generateCoordinates(apiHotel.adress || '');
+
+    return {
+      id: apiHotel.id?.toString() || '',
+      name: apiHotel.name || 'Отель без названия',
+      description: apiHotel.description || '',
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      address: apiHotel.adress || '',
+      rating: 4.0 + (apiHotel.id % 5) * 0.2, // Генерируем рейтинг 4.0-5.0
+      pricePerNight: parsePrice(apiHotel.cost || ''),
+      currency: 'RUB',
+      amenities: ['wi-fi', 'парковка'], // Базовые удобства
+      phone: apiHotel.contacts || '',
+      website: '',
+      starRating: 3 + (apiHotel.id % 3), // 3-5 звезд
+      isAvailable: apiHotel.isAvalible !== false,
+      checkIn: parseTime(apiHotel.daytimeOpen),
+      checkOut: parseTime(apiHotel.daytimeClose),
+      images: [],
+      type: 'hotel'
+    };
+  }
+
+  /**
+   * Преобразовать событие из API в формат для карты
+   */
+  static transformApiEventForMap(apiEvent: any): any {
+    // Парсим время из TimeOnly объекта
+    const parseTime = (timeObj: any): string => {
+      if (!timeObj) return '18:00';
+      const hour = timeObj.hour?.toString().padStart(2, '0') || '18';
+      const minute = timeObj.minute?.toString().padStart(2, '0') || '00';
+      return `${hour}:${minute}`;
+    };
+
+    // Генерируем координаты на основе адреса (для демонстрации)
+    const generateCoordinates = (address: string) => {
+      // Базовые координаты Ростова-на-Дону
+      const baseLat = 47.2357;
+      const baseLng = 39.7125;
+      
+      // Добавляем небольшое смещение на основе ID события
+      const id = apiEvent.id || 1;
+      const latOffset = (id % 15) * 0.005;
+      const lngOffset = (id % 12) * 0.005;
+      
+      return {
+        latitude: baseLat + latOffset,
+        longitude: baseLng + lngOffset
+      };
+    };
+
+    const coordinates = generateCoordinates(apiEvent.adress || '');
+
+    return {
+      id: apiEvent.id?.toString() || '',
+      name: apiEvent.name || 'Событие без названия',
+      description: apiEvent.description || '',
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      address: apiEvent.adress || '',
+      category: 'event',
+      startDate: new Date(),
+      endDate: new Date(),
+      startTime: parseTime(apiEvent.datetimeOpen),
+      endTime: parseTime(apiEvent.datetimeClose),
+      cost: apiEvent.cost || 'Бесплатно',
+      contacts: apiEvent.contacts || '',
+      ageLimit: apiEvent.ageLimit || 0,
+      isAvailable: apiEvent.isAvalible !== false,
+      type: 'event'
+    };
+  }
+
+  /**
+   * Преобразовать отель из статических данных в формат для карты
+   */
+  static transformHotelForMap(hotel: any): any {
+    return {
+      id: hotel.id,
+      name: hotel.name,
+      description: hotel.description,
+      latitude: hotel.coordinates.latitude,
+      longitude: hotel.coordinates.longitude,
+      address: hotel.address,
+      rating: hotel.rating,
+      pricePerNight: hotel.pricePerNight,
+      currency: hotel.currency,
+      amenities: hotel.amenities,
+      phone: hotel.phone,
+      website: hotel.website,
+      starRating: hotel.starRating,
+      isAvailable: hotel.isAvailable,
+      checkIn: hotel.checkIn,
+      checkOut: hotel.checkOut,
+      images: hotel.images,
+      type: 'hotel'
+    };
+  }
+
+  /**
+   * Преобразовать массив отелей для карты
+   */
+  static transformHotelsForMap(hotels: any[]): any[] {
+    return hotels.map(hotel => MapService.transformHotelForMap(hotel));
+  }
+
+  /**
+   * Получить рекомендуемый регион для отображения отелей
+   */
+  static getRecommendedRegionForHotels(hotels: any[]): MapRegion {
+    if (hotels.length === 0) {
+      return {
+        latitude: 47.2357,
+        longitude: 39.7125,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      };
+    }
+
+    const latitudes = hotels.map(hotel => hotel.coordinates?.latitude || hotel.latitude);
+    const longitudes = hotels.map(hotel => hotel.coordinates?.longitude || hotel.longitude);
+
+    const minLat = Math.min(...latitudes);
+    const maxLat = Math.max(...latitudes);
+    const minLng = Math.min(...longitudes);
+    const maxLng = Math.max(...longitudes);
+
+    const latDelta = (maxLat - minLat) * 1.2; // Добавляем 20% отступ
+    const lngDelta = (maxLng - minLng) * 1.2;
+
+    return {
+      latitude: (minLat + maxLat) / 2,
+      longitude: (minLng + maxLng) / 2,
+      latitudeDelta: Math.max(latDelta, 0.01), // Минимальный размер
+      longitudeDelta: Math.max(lngDelta, 0.01),
+    };
+  }
+
+  /**
+   * Получить статистику отелей по области
+   */
+  static async getHotelsStats(
+    latitude: number,
+    longitude: number,
+    radius: number = 5000
+  ): Promise<{
+    total: number;
+    averagePrice: number;
+    averageRating: number;
+    priceRange: { min: number; max: number };
+  }> {
+    try {
+      const hotels = await MapService.getNearbyHotels(latitude, longitude, radius);
+      
+      if (hotels.length === 0) {
+        return {
+          total: 0,
+          averagePrice: 0,
+          averageRating: 0,
+          priceRange: { min: 0, max: 0 }
+        };
+      }
+
+      const prices = hotels.map(h => h.pricePerNight);
+      const ratings = hotels.map(h => h.rating);
+
+      return {
+        total: hotels.length,
+        averagePrice: prices.reduce((a, b) => a + b, 0) / prices.length,
+        averageRating: ratings.reduce((a, b) => a + b, 0) / ratings.length,
+        priceRange: {
+          min: Math.min(...prices),
+          max: Math.max(...prices)
+        }
+      };
+    } catch (error) {
+      console.error('Ошибка получения статистики отелей:', error);
+      return {
+        total: 0,
+        averagePrice: 0,
+        averageRating: 0,
+        priceRange: { min: 0, max: 0 }
+      };
+    }
+  }
+
+  /**
+   * Получить комбинированные точки интереса (POI + отели)
+   */
+  static async getCombinedMapPoints(params?: {
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+    includePOIs?: boolean;
+    includeHotels?: boolean;
+    includeRestaurants?: boolean;
+    includeEvents?: boolean;
+  }): Promise<any[]> {
+    try {
+      const points: any[] = [];
+
+      // Получаем POI
+      if (params?.includePOIs !== false) {
+        const pois = await MapService.getEnhancedPOIs(
+          params?.latitude || 47.2357,
+          params?.longitude || 39.7125,
+          params?.radius || 10000
+        );
+        points.push(...pois.map(poi => ({ ...poi, pointType: 'poi' })));
+      }
+
+      // Получаем отели
+      if (params?.includeHotels !== false) {
+        const hotels = await MapService.getHotelsForMap({
+          latitude: params?.latitude,
+          longitude: params?.longitude,
+          radius: params?.radius
+        });
+        points.push(...hotels.map(hotel => ({
+          ...MapService.transformHotelForMap(hotel),
+          pointType: 'hotel'
+        })));
+      }
+
+      // Получаем рестораны
+      if (params?.includeRestaurants !== false && params?.latitude && params?.longitude) {
+        const restaurants = await MapService.getRestaurants({
+          latitude: params.latitude,
+          longitude: params.longitude,
+          radius: params.radius
+        });
+        points.push(...restaurants.map(restaurant => ({
+          ...restaurant,
+          pointType: 'restaurant'
+        })));
+      }
+
+      // Получаем события
+      if (params?.includeEvents !== false && params?.latitude && params?.longitude) {
+        const events = await MapService.getEvents({
+          latitude: params.latitude,
+          longitude: params.longitude,
+          radius: params.radius
+        });
+        points.push(...events.map(event => ({
+          ...event,
+          pointType: 'event'
+        })));
+      }
+
+      console.log(`Загружено ${points.length} комбинированных точек на карте`);
+      return points;
+    } catch (error) {
+      console.error('Ошибка загрузки комбинированных точек:', error);
       return [];
     }
   }
