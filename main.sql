@@ -1,5 +1,3 @@
-CREATE DATABASE  IF NOT EXISTS `db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
-USE `db`;
 -- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: db
@@ -352,7 +350,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (1,'Admin','Admin','admin@example.com',NULL,NULL,'ZOqYOzfURcgPW96WkIU9GSV6hPbv54AMV2Eu+P6qMWs=',_binary '),ЩЯ╒r\ИЪ&\мd╗=\n\т\О\сwЙ█╒oё6:Ь╪s╞3≥\г	Ь╓,KR▐Ь▐╪≤)5*Ёэ╟╬C\д=O\НаЁ\n',NULL),(2,'Tighki','Vlad','tighki@mail.ru','A0555266908B02AFEFAB9B9DC324F705F3C5C8344342F7E24C12113B663821D4','2025-11-02 05:31:05','JN9ZbHiD5ZbLLNkoNSNAh3buh1dsJ4nJ6s49jnNevYM=',_binary '╔╦o╫gE\жJlZ╠шЁ\Г\Б\Й{,&OЩ╟g\и\"\"┌?b╤7\n╩@Km\и\м\Ю┼╙\лV░X_\"9┐\Е+9\б!С?╕\А\Г',NULL),(3,'Egor','Egor','egor@example.com','6C499286D7405A66C99DCC04901EC35CCDA50B0784A2A48EBBE82778E3DA2A58','2025-11-02 02:41:24','mcOA4ZRRu+sndYjR4flkgQHGWx9gI6ApqPgR4733Rl8=',_binary '╙H╤\лG\nh ╓┼░└\жSWBm╛y²\М\ъ1╬┌\щ+]▀UЯ┐N┐u╡g~\Х2\Г8├*╪╫ \п ╔H\е╛÷s╖П',NULL);
+INSERT INTO `user` VALUES (1,'Admin','Admin','admin@example.com',NULL,NULL,'ZOqYOzfURcgPW96WkIU9GSV6hPbv54AMV2Eu+P6qMWs=',_binary '),О©╫О©╫О©╫r\О©╫О©╫&\О©╫dО©╫=\n\О©╫\О©╫\О©╫wЙ█╒oО©╫6:О©╫О©╫sО©╫3О©╫\О©╫	О©╫О©╫,KRО©╫О©╫О©╫О©╫О©╫)5*О©╫э╟О©╫C\О©╫=O\О©╫О©╫О©╫\n',NULL),(2,'Tighki','Vlad','tighki@mail.ru','A0555266908B02AFEFAB9B9DC324F705F3C5C8344342F7E24C12113B663821D4','2025-11-02 05:31:05','JN9ZbHiD5ZbLLNkoNSNAh3buh1dsJ4nJ6s49jnNevYM=',_binary 'О©╫О©╫oО©╫gE\О©╫JlZО©╫шЁ\О©╫\О©╫\О©╫{,&OО©╫О©╫g\О©╫\"\"О©╫?bО©╫7\nО©╫@Km\О©╫\О©╫\О©╫О©╫О©╫\О©╫VО©╫X_\"9О©╫\О©╫+9\О©╫!О©╫?О©╫\О©╫\О©╫',NULL),(3,'Egor','Egor','egor@example.com','6C499286D7405A66C99DCC04901EC35CCDA50B0784A2A48EBBE82778E3DA2A58','2025-11-02 02:41:24','mcOA4ZRRu+sndYjR4flkgQHGWx9gI6ApqPgR4733Rl8=',_binary 'О©╫HО©╫\О©╫G\nhО©╫О©╫О©╫О©╫О©╫\О©╫SWBmО©╫yО©╫\О©╫\О©╫1О©╫О©╫\О©╫+]О©╫UО©╫NО©╫uО©╫g~\О©╫2\О©╫8О©╫*О©╫О©╫О©╫\О©╫ О©╫H\О©╫О©╫О©╫sО©╫О©╫',NULL);
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
