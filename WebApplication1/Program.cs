@@ -11,14 +11,30 @@ using WebApplication1.Servises;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Регистрация DbContext
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Регистрация DbContextFactory для поддержки параллельных запросов
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+{
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection") 
         ?? "server=mysql;port=3306;user=root;database=db;password=root",
-        Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.11.14-mariadb")
-    )
-);
+        Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.11.14-mariadb"),
+        mysqlOptions =>
+        {
+            mysqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null
+            );
+        }
+    );
+    
+    // Включаем детальные ошибки и логирование для отладки
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
+}, ServiceLifetime.Scoped); // Factory сам будет Scoped, но создает Transient контексты
 
 // Конфигурация AuthOptions
 var authOptions = new AuthOptions
@@ -76,6 +92,17 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IHotelService, HotelService>();
 builder.Services.AddScoped<IEventService, EventService>();
 
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -124,7 +151,7 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "swagger";
 });
 
-app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();

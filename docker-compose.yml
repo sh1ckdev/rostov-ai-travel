@@ -7,14 +7,14 @@ services:
     restart: always
     environment:
       - HashServiceUrl=http://hashservice
+      - ASPNETCORE_URLS=http://+:8080
     networks:
       - apinet
     depends_on:
       - mysql
       - hashservice
     ports:
-      - "8080:8080"
-      - "8081:8081"
+      - "0.0.0.0:8080:8080"
 
   hashservice:
     image: ${DOCKER_REGISTRY-}hashservice
@@ -25,7 +25,7 @@ services:
     networks:
       - apinet
     ports:
-      - "5000:80"
+      - "0.0.0.0:5000:80"
 
   webapplication2:
     image: ${DOCKER_REGISTRY-}webapplication2
@@ -34,11 +34,11 @@ services:
       dockerfile: WebApplication2/WebApplication2/Dockerfile
     restart: always
     environment:
-      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_URLS=http://+:8080
     networks:
       - apinet
     ports:
-      - "8082:8080"
+      - "0.0.0.0:8082:8080"
 
   mysql:
     image: mariadb:10.11
@@ -51,7 +51,7 @@ services:
     networks:
       - apinet
     ports:
-      - "3406:3306"
+      - "0.0.0.0:3406:3306"
 
 volumes:
   mysql-data:

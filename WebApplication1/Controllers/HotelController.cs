@@ -20,19 +20,59 @@ namespace WebApplication1.Controllers
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetHotels([FromQuery] SieveModel sieveModel)
         {
-            var (hotels, totalCount) = await _hotelService.GetHotelsAsync(sieveModel);
-            
-            var pageSize = sieveModel.PageSize ?? 10;
-            var page = sieveModel.Page ?? 1;
-            
-            return Ok(new
+            try
             {
-                data = hotels,
-                totalCount,
-                page,
-                pageSize,
-                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            });
+                _logger.LogInformation("Запрос списка отелей: Page={Page}, PageSize={PageSize}, Filters={Filters}, Sorts={Sorts}", 
+                    sieveModel.Page, sieveModel.PageSize, sieveModel.Filters, sieveModel.Sorts);
+                
+                var (hotels, totalCount) = await _hotelService.GetHotelsAsync(sieveModel);
+                
+                var pageSize = sieveModel.PageSize ?? 10;
+                var page = sieveModel.Page ?? 1;
+                
+                return Ok(new
+                {
+                    data = hotels,
+                    totalCount,
+                    page,
+                    pageSize,
+                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении списка отелей");
+                return StatusCode(500, new { message = "Ошибка при получении списка отелей", error = ex.Message });
+            }
+        }
+
+        [HttpGet("with-review-counts")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetHotelsWithReviewCounts([FromQuery] SieveModel sieveModel)
+        {
+            try
+            {
+                _logger.LogInformation("Запрос списка отелей с количеством отзывов");
+                
+                var (hotels, totalCount) = await _hotelService.GetHotelsWithReviewCountsAsync(sieveModel);
+                
+                var pageSize = sieveModel.PageSize ?? 10;
+                var page = sieveModel.Page ?? 1;
+                
+                return Ok(new
+                {
+                    data = hotels,
+                    totalCount,
+                    page,
+                    pageSize,
+                    totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка при получении списка отелей с отзывами");
+                return StatusCode(500, new { message = "Ошибка при получении списка отелей", error = ex.Message });
+            }
         }
 
         [HttpGet("{id}")]

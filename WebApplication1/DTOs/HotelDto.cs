@@ -81,5 +81,10 @@ namespace WebApplication1.DTOs
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
     }
+
+    public class HotelWithReviewCountDto : HotelDto
+    {
+        public int ReviewCount { get; set; }
+    }
 }
 

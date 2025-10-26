@@ -170,7 +170,10 @@ namespace WebApplication2.Controllers
             var content = await response.Content.ReadAsStringAsync();
             var jsonResponse = JsonConvert.DeserializeObject<OpenRouterResponse>(content);
 
-            return jsonResponse.Choices[0].Message.Content;
+            if (jsonResponse?.Choices == null || jsonResponse.Choices.Length == 0)
+                return "Не удалось получить ответ от AI";
+            
+            return jsonResponse.Choices[0]?.Message?.Content ?? "Ответ AI пуст";
         }
     }
 }
