@@ -9,11 +9,12 @@ builder.Services.AddAppServices();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "HashService API v1");
+    options.RoutePrefix = "swagger";
+});
 
 app.UseAuthorization();
 
